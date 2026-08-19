@@ -25,6 +25,7 @@ const MAIN_KEYBOARD = {
   keyboard: [
     [{ text: 'Cek Saldo' }, { text: 'Riwayat Transaksi' }],
     [{ text: 'Analisis Keuangan' }, { text: 'Panduan Format' }],
+    [{ text: 'Putuskan Akun' }],
   ],
   resize_keyboard: true,
   is_persistent: true,
@@ -126,6 +127,21 @@ export async function POST(req: NextRequest) {
 
       if (action === 'health' || action === 'btn_health') {
         await handleHealthCommand(botToken, chatId, telegramId, profile.id, supabase);
+        return NextResponse.json({ ok: true });
+      }
+
+      if (action === 'unlink' || action === 'btn_unlink') {
+        await supabase
+          .from('profiles')
+          .update({ telegram_id: null, telegram_username: null })
+          .eq('id', profile.id);
+
+        await sendTelegramMessage(
+          botToken,
+          chatId,
+          `<b>Sambungan Akun Diputuskan</b>\n\nAkun Anda telah berhasil diputuskan dari bot ini.\nUntuk menghubungkan kembali di masa mendatang, cukup kirimkan Kode Pairing dari menu Pintasan & Bot di web.`,
+          { remove_keyboard: true }
+        );
         return NextResponse.json({ ok: true });
       }
 
@@ -302,6 +318,31 @@ export async function POST(req: NextRequest) {
     const textLower = (message.text || '').toLowerCase().trim();
 
     // -------------------------------------------------------------
+    // TEMPLATE 0: PUTUSKAN AKUN / UNLINK
+    // -------------------------------------------------------------
+    if (
+      textLower === 'putuskan akun' ||
+      textLower === 'putus' ||
+      textLower === '/unlink' ||
+      textLower === '/putus' ||
+      textLower === 'disconnect' ||
+      textLower === '/disconnect'
+    ) {
+      await supabase
+        .from('profiles')
+        .update({ telegram_id: null, telegram_username: null })
+        .eq('id', profile.id);
+
+      await sendTelegramMessage(
+        botToken,
+        chatId,
+        `<b>Sambungan Akun Diputuskan</b>\n\nAkun Anda telah berhasil diputuskan dari bot ini.\nUntuk menghubungkan kembali di masa mendatang, cukup kirimkan Kode Pairing baru dari web MoneyAssist.`,
+        { remove_keyboard: true }
+      );
+      return NextResponse.json({ ok: true });
+    }
+
+    // -------------------------------------------------------------
     // TEMPLATE 1: CEK SALDO / RINGKASAN SALDO
     // -------------------------------------------------------------
     if (
@@ -365,7 +406,7 @@ export async function POST(req: NextRequest) {
           `<b>2. Scan Gambar / Struk Kasir / Bukti Pesanan:</b>\n` +
           `Kirimkan langsung foto nota belanja, invoice, atau screenshot detail pesanan marketplace.\n\n` +
           `<b>3. Menu Cepat:</b>\n` +
-          `Gunakan tombol pilihan menu di bawah untuk memeriksa Saldo, Riwayat, atau Analisis Keuangan.`,
+          `Gunakan tombol pilihan menu di bawah untuk memeriksa Saldo, Riwayat, Analisis Keuangan, atau Putuskan Akun.`,
         MAIN_KEYBOARD
       );
       return NextResponse.json({ ok: true });

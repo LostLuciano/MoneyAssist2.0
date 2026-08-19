@@ -19,6 +19,7 @@ import {
   Save,
   Unlink,
   Loader2,
+  Shuffle,
 } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import { createClient } from '@/lib/supabase/client';
@@ -47,7 +48,7 @@ export default function IntegrationsPage() {
 
         // Generate default pairing code if null
         if (data && !data.pairing_code) {
-          const randomCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+          const randomCode = 'MA' + Math.random().toString(36).substring(2, 6).toUpperCase();
           await supabase.from('profiles').update({ pairing_code: randomCode }).eq('id', user.id);
           data.pairing_code = randomCode;
         }
@@ -79,9 +80,29 @@ export default function IntegrationsPage() {
     setTimeout(() => setCopiedKey(null), 2000);
   };
 
-  const handleGenerateRandomCode = () => {
-    const randomCode = Math.random().toString(36).substring(2, 8).toUpperCase();
-    setCustomCodeInput(randomCode);
+  const handleRandomizeAndSaveCode = async () => {
+    setSavingCode(true);
+    const newRandomCode = 'MA' + Math.random().toString(36).substring(2, 6).toUpperCase();
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { error } = await supabase
+          .from('profiles')
+          .update({ pairing_code: newRandomCode })
+          .eq('id', user.id);
+
+        if (error) throw error;
+      }
+
+      setProfile((prev: any) => ({ ...prev, pairing_code: newRandomCode }));
+      setCustomCodeInput(newRandomCode);
+      setStatusMsg({ type: 'success', text: `Kode pairing berhasil diacak: ${newRandomCode}` });
+      setTimeout(() => setStatusMsg(null), 3000);
+    } catch (err: any) {
+      setStatusMsg({ type: 'error', text: 'Gagal mengacak kode: ' + err.message });
+    } finally {
+      setSavingCode(false);
+    }
   };
 
   const handleSaveCustomCode = async (e: React.FormEvent) => {
@@ -193,33 +214,43 @@ export default function IntegrationsPage() {
                 <button
                   onClick={handleUnlinkTelegram}
                   disabled={unlinking}
-                  className="p-2 rounded-xl bg-slate-900 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 border border-white/5 transition-colors"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 border border-white/5 text-xs font-semibold transition-colors"
                   title="Putuskan Sambungan"
                 >
-                  <Unlink className="w-4 h-4" />
+                  <Unlink className="w-3.5 h-3.5" />
+                  <span>Putuskan</span>
                 </button>
               </div>
             ) : (
-              <span className="px-3 py-1.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 text-xs font-bold shrink-0">
-                Belum Terhubung
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="px-3 py-1.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 text-xs font-bold shrink-0">
+                  Belum Terhubung
+                </span>
+              </div>
             )}
           </div>
 
-          {/* Pairing Code Customizer & Box */}
+          {/* Pairing Code Customizer & Randomizer Box */}
           <div className="p-5 rounded-2xl bg-slate-900/90 border border-white/10 space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
-                  Kode Pairing Akun Anda
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+                    Kode Pairing Akun Anda
+                  </span>
+                  {!profile?.telegram_id && (
+                    <span className="text-[10px] px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-semibold">
+                      Otomatis Diacak
+                    </span>
+                  )}
+                </div>
                 <p className="text-xs text-slate-300 mt-0.5">
-                  Anda bisa mengubah kode ini sesuai keinginan (bebas gonta-ganti kode).
+                  Anda bisa mengacak kode baru kapan saja atau mengubahnya secara kustom.
                 </p>
               </div>
 
               {!isEditingCode ? (
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <span className="text-2xl font-black font-mono text-emerald-400 tracking-widest px-4 py-1.5 rounded-xl bg-slate-950 border border-emerald-500/30 shadow-inner">
                     {activePairingCode}
                   </span>
@@ -231,6 +262,15 @@ export default function IntegrationsPage() {
                     {copiedKey === 'plain_code' ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
                   </button>
                   <button
+                    onClick={handleRandomizeAndSaveCode}
+                    disabled={savingCode}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 border border-white/5 transition-colors"
+                    title="Acak Kode Baru Otomatis"
+                  >
+                    {savingCode ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Shuffle className="w-3.5 h-3.5 text-cyan-400" />}
+                    <span>Acak Kode</span>
+                  </button>
+                  <button
                     onClick={() => {
                       setCustomCodeInput(activePairingCode);
                       setIsEditingCode(true);
@@ -238,7 +278,7 @@ export default function IntegrationsPage() {
                     className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-750 text-xs font-semibold text-slate-200 border border-white/5"
                   >
                     <Edit2 className="w-3.5 h-3.5" />
-                    <span>Ganti Kode</span>
+                    <span>Ganti</span>
                   </button>
                 </div>
               ) : (
@@ -252,14 +292,6 @@ export default function IntegrationsPage() {
                     maxLength={12}
                     required
                   />
-                  <button
-                    type="button"
-                    onClick={handleGenerateRandomCode}
-                    className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300"
-                    title="Buat Kode Acak"
-                  >
-                    <RefreshCw className="w-4 h-4" />
-                  </button>
                   <button
                     type="submit"
                     disabled={savingCode}
@@ -320,7 +352,7 @@ export default function IntegrationsPage() {
                 <span>{activePairingCode}</span>
                 <button
                   onClick={() => handleCopy(activePairingCode, 'code_only')}
-                  className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-sans font-semibold transition-colors"
+                  className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-750 text-slate-200 text-xs font-sans font-semibold transition-colors"
                 >
                   {copiedKey === 'code_only' ? (
                     <>
