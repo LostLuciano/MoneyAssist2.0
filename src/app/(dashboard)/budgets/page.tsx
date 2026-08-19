@@ -140,7 +140,7 @@ export default function BudgetsPage() {
         subtitle="Pantau batas alokasi pengeluaran per kategori agar tidak overspending"
       />
 
-      <div className="px-6 space-y-6 max-w-6xl mx-auto">
+      <div className="px-4 sm:px-6 space-y-6 max-w-6xl mx-auto">
         {/* Summary Card */}
         <div className="glass-panel p-6 rounded-3xl border border-white/5 flex flex-col md:flex-row items-center justify-between gap-6">
           <div>

@@ -107,7 +107,7 @@ export default function TransactionsPage() {
         onTransactionAdded={fetchTransactions}
       />
 
-      <div className="px-6 space-y-6 max-w-7xl mx-auto">
+      <div className="px-4 sm:px-6 space-y-6 max-w-7xl mx-auto">
         {/* Filters & Search Toolbar */}
         <div className="glass-panel p-4 rounded-2xl border border-white/5 flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex-1 w-full md:w-auto relative">

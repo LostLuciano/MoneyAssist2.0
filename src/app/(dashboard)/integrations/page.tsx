@@ -76,7 +76,7 @@ export default function IntegrationsPage() {
         subtitle="Otomatisasi pencatatan transaksi via Ketuk Belakang iPhone dan Bot Telegram AI"
       />
 
-      <div className="px-6 space-y-6 max-w-5xl mx-auto">
+      <div className="px-4 sm:px-6 space-y-6 max-w-5xl mx-auto">
         {/* 1. Telegram Bot Integration Card */}
         <div className="glass-panel p-6 md:p-8 rounded-3xl border border-white/5 space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">

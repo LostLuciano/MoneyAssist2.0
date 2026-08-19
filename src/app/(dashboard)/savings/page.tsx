@@ -135,7 +135,7 @@ export default function SavingsPage() {
         subtitle="Rencanakan dan pantau perkembangan tabungan impian serta dana darurat"
       />
 
-      <div className="px-6 space-y-6 max-w-6xl mx-auto">
+      <div className="px-4 sm:px-6 space-y-6 max-w-6xl mx-auto">
         {/* Total Summary */}
         <div className="glass-panel p-6 rounded-3xl border border-white/5 flex flex-col md:flex-row items-center justify-between gap-6">
           <div>

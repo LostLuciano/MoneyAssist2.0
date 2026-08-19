@@ -70,7 +70,7 @@ export default function Sidebar({ userEmail }: { userEmail?: string | null }) {
   };
 
   return (
-    <aside className="w-64 border-r border-white/5 bg-[#0b0f19] flex flex-col justify-between shrink-0 min-h-screen">
+    <aside className="hidden md:flex w-64 border-r border-white/5 bg-[#0b0f19] flex-col justify-between shrink-0 min-h-screen">
       <div>
         {/* Logo Section */}
         <div className="h-16 px-6 flex items-center border-b border-white/5">

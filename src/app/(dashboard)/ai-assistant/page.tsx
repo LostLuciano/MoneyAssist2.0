@@ -149,7 +149,7 @@ export default function AiAssistantPage() {
         subtitle="Konsultasi strategi finansial & pencatatan transaksi percakapan cerdas"
       />
 
-      <div className="flex-1 overflow-y-auto p-6 max-w-4xl w-full mx-auto space-y-4">
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6 max-w-4xl w-full mx-auto space-y-4">
         {messages.map((msg) => {
           const isAI = msg.role === 'assistant';
           return (

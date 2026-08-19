@@ -146,7 +146,7 @@ export default function DashboardPage() {
         categories={categories}
       />
 
-      <div className="px-6 space-y-6 max-w-7xl mx-auto">
+      <div className="px-4 sm:px-6 space-y-6 max-w-7xl mx-auto">
         {/* Top Quick Actions Bar */}
         <div className="p-4 rounded-2xl bg-gradient-to-r from-slate-900 via-slate-900/80 to-emerald-950/30 border border-emerald-500/20 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">

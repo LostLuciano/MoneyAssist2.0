@@ -26,19 +26,22 @@ export default function Header({
     switch (financialStatus) {
       case 'Critical Status':
         return {
-          label: 'Critical Status (Defisit)',
+          label: 'Defisit',
+          fullLabel: 'Critical Status (Defisit)',
           icon: AlertCircle,
           color: 'bg-rose-500/10 text-rose-400 border-rose-500/20',
         };
       case 'Elevated Spending':
         return {
-          label: 'Elevated Spending (Waspada)',
+          label: 'Waspada',
+          fullLabel: 'Elevated Spending (Waspada)',
           icon: AlertTriangle,
           color: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
         };
       default:
         return {
-          label: 'Controlled Spending (Sehat)',
+          label: 'Sehat',
+          fullLabel: 'Controlled Spending (Sehat)',
           icon: ShieldCheck,
           color: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
         };
@@ -50,13 +53,22 @@ export default function Header({
 
   return (
     <>
-      <header className="h-16 px-6 border-b border-white/5 bg-[#090d16]/80 backdrop-blur-xl flex items-center justify-between sticky top-0 z-30">
-        <div>
-          <h1 className="text-lg font-bold text-white tracking-tight">{title}</h1>
-          {subtitle && <p className="text-xs text-slate-400">{subtitle}</p>}
+      <header className="h-16 px-4 sm:px-6 border-b border-white/5 bg-[#090d16]/80 backdrop-blur-xl flex items-center justify-between sticky top-0 z-30">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="md:hidden w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center justify-center font-bold text-xs shrink-0">
+            <Sparkles className="w-3.5 h-3.5" />
+          </div>
+          <div className="min-w-0">
+            <h1 className="text-base sm:text-lg font-bold text-white tracking-tight truncate">{title}</h1>
+            {subtitle && (
+              <p className="text-[11px] sm:text-xs text-slate-400 truncate max-w-[200px] sm:max-w-md">
+                {subtitle}
+              </p>
+            )}
+          </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           {/* Financial status pill */}
           <div
             className={clsx(
@@ -65,16 +77,17 @@ export default function Header({
             )}
           >
             <StatusIcon className="w-3.5 h-3.5" />
-            <span>{statusBadge.label}</span>
+            <span>{statusBadge.fullLabel}</span>
           </div>
 
           {/* Quick Add Transaction Button */}
           <button
             onClick={() => setIsAddModalOpen(true)}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-semibold text-xs transition-all shadow-md shadow-emerald-500/20 hover:scale-[1.02]"
+            className="flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs transition-all shadow-md shadow-emerald-500/20 hover:scale-[1.02] active:scale-95"
           >
             <Plus className="w-4 h-4" />
-            <span>Catat Transaksi</span>
+            <span className="hidden sm:inline">Catat Transaksi</span>
+            <span className="sm:hidden">Catat</span>
           </button>
         </div>
       </header>
