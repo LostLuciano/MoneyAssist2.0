@@ -221,9 +221,10 @@ export default function IntegrationsPage() {
 
   const isConnected = !!profile?.telegram_id;
   const activePairingCode = profile?.pairing_code || customCodeInput || 'DEMO20';
+  const shortcutToken = profile?.api_token || profile?.telegram_id || '';
   const telegramDirectUrl = `https://t.me/${botUsername}?start=${activePairingCode}`;
-  const uploadEndpoint = `${origin}/api/shortcut/scan`;
-  const pingEndpoint = `${origin}/api/shortcut/ping?token=${profile?.api_token || profile?.telegram_id || 'demo'}`;
+  const uploadEndpoint = `${origin}/api/shortcut/scan?token=${encodeURIComponent(shortcutToken)}`;
+  const pingEndpoint = `${origin}/api/shortcut/ping?token=${encodeURIComponent(shortcutToken)}`;
 
   return (
     <div className="space-y-6">
@@ -500,15 +501,16 @@ export default function IntegrationsPage() {
               <div className="flex items-center justify-between text-xs">
                 <span className="font-bold text-white">Endpoint Upload Pintasan (POST):</span>
                 <button
+                  disabled={!isConnected || !shortcutToken}
                   onClick={() => handleCopy(uploadEndpoint, 'upload_ep')}
-                  className="flex items-center gap-1.5 text-xs text-emerald-400 hover:underline font-bold"
+                  className="flex items-center gap-1.5 text-xs text-emerald-400 hover:underline font-bold disabled:text-slate-600 disabled:no-underline"
                 >
                   {copiedKey === 'upload_ep' ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
                   <span>{copiedKey === 'upload_ep' ? 'Tersalin!' : 'Salin URL'}</span>
                 </button>
               </div>
               <div className="p-2.5 rounded-xl bg-slate-950 border border-white/5 font-mono text-[11px] text-emerald-400 truncate">
-                {uploadEndpoint}
+                {isConnected ? uploadEndpoint : 'Hubungkan Telegram dulu agar URL Pintasan aktif.'}
               </div>
             </div>
 
@@ -517,25 +519,28 @@ export default function IntegrationsPage() {
                 <span className="font-bold text-white">URL Tes Koneksi Pintasan:</span>
                 <div className="flex items-center gap-2">
                   <button
+                    disabled={!isConnected || !shortcutToken}
                     onClick={() => handleCopy(pingEndpoint, 'ping_ep')}
-                    className="flex items-center gap-1.5 text-xs text-cyan-400 hover:underline font-bold"
+                    className="flex items-center gap-1.5 text-xs text-cyan-400 hover:underline font-bold disabled:text-slate-600 disabled:no-underline"
                   >
                     {copiedKey === 'ping_ep' ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
                     <span>{copiedKey === 'ping_ep' ? 'Tersalin!' : 'Salin URL Tes'}</span>
                   </button>
-                  <a
-                    href={pingEndpoint}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="px-2.5 py-1 rounded-lg bg-cyan-500/20 text-cyan-300 text-xs font-bold flex items-center gap-1"
-                  >
-                    <span>Buka</span>
-                    <ExternalLink className="w-3 h-3" />
-                  </a>
+                  {isConnected && shortcutToken && (
+                    <a
+                      href={pingEndpoint}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="px-2.5 py-1 rounded-lg bg-cyan-500/20 text-cyan-300 text-xs font-bold flex items-center gap-1"
+                    >
+                      <span>Buka</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  )}
                 </div>
               </div>
               <div className="p-2.5 rounded-xl bg-slate-950 border border-white/5 font-mono text-[11px] text-cyan-400 truncate">
-                {pingEndpoint}
+                {isConnected ? pingEndpoint : 'Hubungkan Telegram dulu untuk mengaktifkan URL tes.'}
               </div>
             </div>
           </div>
@@ -551,7 +556,7 @@ export default function IntegrationsPage() {
                 'Ketuk Tambah Tindakan, cari dan pilih tindakan "Ambil Tangkapan Layar" (Take Screenshot).',
                 'Cari tindakan "Dapatkan Isi URL" (Get Contents of URL), lalu tempel URL Endpoint Upload di atas.',
                 'Buka Tampilkan Lebih Banyak (Show More) di tindakan Dapatkan Isi URL. Pilih Method: POST, Request Body: Form.',
-                'Tambah field File dengan nama "photo" dan isi dengan hasil Tangkapan Layar. Tambah juga field Teks "token" dan isi token akun Anda.',
+                'Di bagian Form, tambah field File dengan nama "photo". Isi nilainya dengan hasil dari tindakan Ambil Tangkapan Layar. Tidak perlu menambah field token karena token sudah ada di URL endpoint.',
                 'Buka Pengaturan iPhone > Aksesibilitas > Sentuh > Ketuk Bagian Belakang (Back Tap) > Ketuk Dua Kali > pilih "Scan MoneyAssist". Selesai!'
               ].map((step, idx) => (
                 <div key={idx} className="flex items-start gap-3 p-3 rounded-xl bg-slate-950/60 border border-white/5 text-slate-300">

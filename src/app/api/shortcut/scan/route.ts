@@ -10,6 +10,20 @@ function cleanBotToken(token?: string) {
   return token.trim().replace(/^["']|["']$/g, '').replace(/^TELEGRAM_BOT_TOKEN=\s*/, '').trim();
 }
 
+function cleanShortcutToken(token?: string | null) {
+  return String(token || '').trim().replace(/^["']|["']$/g, '');
+}
+
+function getSafeErrorDetail(error: unknown) {
+  const raw = String((error as any)?.message || 'Error tidak diketahui.');
+  return raw
+    .replace(/gsk_[A-Za-z0-9_-]+/g, '[groq-key]')
+    .replace(/sk-or-v1-[A-Za-z0-9_-]+/g, '[openrouter-key]')
+    .replace(/AIza[A-Za-z0-9_-]+/g, '[google-key]')
+    .replace(/AQ\.[A-Za-z0-9_-]+/g, '[google-key]')
+    .slice(0, 350);
+}
+
 function getSupabaseAdmin() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://pnwqifnkgrlvpklapfkx.supabase.co';
   const key =
@@ -53,37 +67,45 @@ async function sendTelegramMessage(botToken: string, chatId: string | number, te
 }
 
 export async function POST(req: NextRequest) {
-  const botToken = cleanBotToken(process.env.TELEGRAM_BOT_TOKEN) || '8825779149:AAFI5p2O7Tq0T1qXhJj_rnssv3o4xJFjzmw';
+  const botToken = cleanBotToken(process.env.TELEGRAM_BOT_TOKEN);
 
   try {
+    const { searchParams } = new URL(req.url);
     const formData = await req.formData();
-    const photo = formData.get('photo') as File | null;
-    const token = (formData.get('token') as string) || (formData.get('telegram_id') as string);
+    const photo = (
+      formData.get('photo') ||
+      formData.get('image') ||
+      formData.get('file') ||
+      formData.get('screenshot')
+    ) as File | null;
+    const token = cleanShortcutToken(
+      searchParams.get('token') ||
+      searchParams.get('telegram_id') ||
+      (formData.get('token') as string | null) ||
+      (formData.get('telegram_id') as string | null)
+    );
 
-    if (!photo) {
-      return NextResponse.json({ error: 'Field "photo" is required.' }, { status: 400 });
+    if (!token) {
+      return NextResponse.json(
+        { error: 'Token Pintasan wajib ada di URL. Salin endpoint dari halaman Integrasi MoneyAssist.' },
+        { status: 401 }
+      );
+    }
+
+    if (!photo || typeof photo.arrayBuffer !== 'function') {
+      return NextResponse.json({ error: 'Field file "photo" wajib diisi dengan hasil Ambil Tangkapan Layar.' }, { status: 400 });
     }
 
     const supabase = getSupabaseAdmin();
 
-    // Authenticate user via token or fallback to latest user
-    let userProfile: any = null;
-    if (token) {
-      const { data } = await supabase
-        .from('profiles')
-        .select('*')
-        .or(`api_token.eq.${token},telegram_id.eq.${token}`)
-        .single();
-      userProfile = data;
-    }
+    const { data: userProfile } = await supabase
+      .from('profiles')
+      .select('*')
+      .or(`api_token.eq.${token},telegram_id.eq.${token}`)
+      .single();
 
     if (!userProfile) {
-      const { data } = await supabase.from('profiles').select('*').limit(1).single();
-      userProfile = data;
-    }
-
-    if (!userProfile) {
-      return NextResponse.json({ error: 'No user profile found to associate transaction.' }, { status: 404 });
+      return NextResponse.json({ error: 'Token Pintasan tidak valid atau akun Telegram belum terhubung.' }, { status: 404 });
     }
 
     // Convert file to buffer and base64
@@ -173,10 +195,11 @@ export async function POST(req: NextRequest) {
       });
     } catch (ocrErr: any) {
       if (userProfile.telegram_id && botToken) {
+        const detail = getSafeErrorDetail(ocrErr);
         await sendTelegramMessage(
           botToken,
           userProfile.telegram_id,
-          `Screenshot dari Pintasan iPhone sudah masuk ke server, namun terjadi kendala pemrosesan AI.\n\nDetail: ${ocrErr.message || 'Layanan AI vision sibuk.'}`
+          `Screenshot dari Pintasan iPhone sudah masuk ke server, namun terjadi kendala pemrosesan AI.\n\nDetail: ${detail}\n\nCek setelan API key/model AI backend lalu coba lagi.`
         );
       }
       throw ocrErr;

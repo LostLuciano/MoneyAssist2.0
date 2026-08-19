@@ -82,7 +82,11 @@ async function answerCallbackQuery(botToken: string, callbackQueryId: string) {
 }
 
 export async function POST(req: NextRequest) {
-  const botToken = cleanBotToken(process.env.TELEGRAM_BOT_TOKEN) || '8825779149:AAFI5p2O7Tq0T1qXhJj_rnssv3o4xJFjzmw';
+  const botToken = cleanBotToken(process.env.TELEGRAM_BOT_TOKEN);
+
+  if (!botToken) {
+    return NextResponse.json({ error: 'TELEGRAM_BOT_TOKEN belum dikonfigurasi.' }, { status: 500 });
+  }
 
   try {
     const update = await req.json();

@@ -125,7 +125,7 @@ export async function generateAIChat({
   selectedModelId?: string;
 }): Promise<{ reply: string; detectedTransaction?: any; provider: string }> {
   const groqKey = cleanApiKey(process.env.GROQ_API_KEY);
-  const geminiKey = cleanApiKey(process.env.GEMINI_API_KEY);
+  const geminiKey = cleanApiKey(process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY);
   const openrouterKey = cleanApiKey(process.env.OPENROUTER_API_KEY);
 
   let contextPrompt = '';
@@ -382,10 +382,10 @@ Aturan Khusus:
   // -------------------------------------------------------------
   if (geminiKey) {
     const geminiVisionModels = [
-      'gemini-flash-lite-latest',
-      'gemini-3.6-flash',
-      'gemini-3.5-flash-lite',
       'gemini-flash-latest',
+      'gemini-2.5-flash',
+      'gemini-flash-lite-latest',
+      'gemini-3.5-flash-lite',
     ];
 
     for (const model of geminiVisionModels) {
