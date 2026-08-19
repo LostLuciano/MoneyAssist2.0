@@ -1,46 +1,36 @@
-# Node dependencies
-**/node_modules/
-moneyassist-frontend/node_modules/
+# dependencies
+/node_modules
+/.pnp
+.pnp.js
+.yarn/install-state.gz
 
-# Composer dependencies
-**/vendor/
-moneyassist-backend/vendor/
+# testing
+/coverage
 
-# Environment files
-**/.env
-**/.env.local
-**/.env.development.local
-**/.env.test.local
-**/.env.production.local
-moneyassist-backend/.env
-moneyassist-frontend/.env
+# next.js
+/.next/
+/out/
 
-# IDEs and editors
-.idea/
-.vscode/
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
+# production
+/build
 
-# SQLite database
-**/database/*.sqlite
+# misc
+.DS_Store
+*.pem
 
-# Backend storage
-**/storage/*.key
-**/storage/framework/cache/data/*
-**/storage/framework/sessions/*
-**/storage/framework/testing/*
-**/storage/framework/views/*
-**/storage/logs/*
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
-# Frontend build output
-**/dist/
-**/build/
+# local env files
+.env*.local
+.env
+!.env.example
 
-# Local archives and raw media files
-brain/
-bckl.rar
-/*.mp4
+# vercel
+.vercel
 
+# typescript
+*.tsbuildinfo
+next-env.d.ts
