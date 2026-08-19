@@ -17,12 +17,13 @@ Gaya Komunikasi:
 - Berikan poin-poin yang mudah dibaca dan actionable.
 `;
 
-export type AIProvider = 'gemini' | 'groq' | 'openrouter' | 'auto';
+export type AIProvider = 'gemini' | 'groq' | 'openrouter' | 'none';
 
 /**
  * Detect available active AI provider from environment variables
+ * Priority: Groq (Fastest) > Gemini > OpenRouter
  */
-export function getActiveProvider(): 'gemini' | 'groq' | 'openrouter' | 'none' {
+export function getActiveProvider(): AIProvider {
   if (process.env.GROQ_API_KEY) return 'groq';
   if (process.env.GEMINI_API_KEY) return 'gemini';
   if (process.env.OPENROUTER_API_KEY) return 'openrouter';
@@ -43,7 +44,6 @@ export async function generateAIChat({
 }): Promise<{ reply: string; detectedTransaction?: any; provider: string }> {
   const provider = getActiveProvider();
 
-  // Context prompt
   let contextPrompt = '';
   if (financialContext) {
     contextPrompt = `\n[Konteks Finansial Pengguna Saat Ini]\n- Pemasukan Bulanan: Rp ${financialContext.monthlyIncome || 0}\n- Total Pemasukan Bulan Ini: Rp ${financialContext.totalIncome || 0}\n- Total Pengeluaran Bulan Ini: Rp ${financialContext.totalExpense || 0}\n- Sisa Saldo: Rp ${financialContext.balance || 0}\n- Status: ${financialContext.status || 'Controlled Spending'}\n- Kategori Terbesar: ${financialContext.topCategory || 'Belum ada'}\n`;
@@ -62,7 +62,7 @@ export async function generateAIChat({
 \`\`\`
 Jika bukan pencatatan transaksi, jawablah pertanyaan keuangan tersebut dengan santun dan berbobot.`;
 
-  // 1. GROQ PROVIDER (Llama 3.3 70B)
+  // 1. GROQ PROVIDER (Llama 3.3 70B - Lightning Fast)
   if (provider === 'groq') {
     const messages = [
       { role: 'system', content: FINANCIAL_SYSTEM_PROMPT },
@@ -79,7 +79,7 @@ Jika bukan pencatatan transaksi, jawablah pertanyaan keuangan tersebut dengan sa
       body: JSON.stringify({
         model: 'llama-3.3-70b-versatile',
         messages,
-        temperature: 0.5,
+        temperature: 0.3,
         max_tokens: 1024,
       }),
     });
@@ -94,7 +94,36 @@ Jika bukan pencatatan transaksi, jawablah pertanyaan keuangan tersebut dengan sa
     return parseTransactionFromText(replyText, 'Groq (Llama 3.3 70B)');
   }
 
-  // 2. OPENROUTER PROVIDER (DeepSeek R1 / Llama 3.3 Free)
+  // 2. GEMINI PROVIDER (Gemini 2.0 / 1.5 Flash)
+  if (provider === 'gemini') {
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-1.5-flash',
+      systemInstruction: FINANCIAL_SYSTEM_PROMPT,
+      generationConfig: {
+        temperature: 0.3,
+        maxOutputTokens: 1024,
+      },
+    });
+
+    const contents: any[] = [];
+    for (const h of history.slice(-6)) {
+      contents.push({
+        role: h.role === 'assistant' ? 'model' : 'user',
+        parts: [{ text: h.content }],
+      });
+    }
+    contents.push({
+      role: 'user',
+      parts: [{ text: promptWithInstruction }],
+    });
+
+    const result = await model.generateContent({ contents });
+    const replyText = result.response.text();
+    return parseTransactionFromText(replyText, 'Google Gemini Flash');
+  }
+
+  // 3. OPENROUTER PROVIDER
   if (provider === 'openrouter') {
     const messages = [
       { role: 'system', content: FINANCIAL_SYSTEM_PROMPT },
@@ -113,7 +142,7 @@ Jika bukan pencatatan transaksi, jawablah pertanyaan keuangan tersebut dengan sa
       body: JSON.stringify({
         model: 'meta-llama/llama-3.3-70b-instruct:free',
         messages,
-        temperature: 0.5,
+        temperature: 0.3,
       }),
     });
 
@@ -127,40 +156,15 @@ Jika bukan pencatatan transaksi, jawablah pertanyaan keuangan tersebut dengan sa
     return parseTransactionFromText(replyText, 'OpenRouter (Llama 3.3 Free)');
   }
 
-  // 3. GEMINI PROVIDER
-  if (provider === 'gemini') {
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
-    const model = genAI.getGenerativeModel({
-      model: 'gemini-1.5-flash',
-      systemInstruction: FINANCIAL_SYSTEM_PROMPT,
-    });
-
-    const contents: any[] = [];
-    for (const h of history.slice(-6)) {
-      contents.push({
-        role: h.role === 'assistant' ? 'model' : 'user',
-        parts: [{ text: h.content }],
-      });
-    }
-    contents.push({
-      role: 'user',
-      parts: [{ text: promptWithInstruction }],
-    });
-
-    const result = await model.generateContent({ contents });
-    const replyText = result.response.text();
-    return parseTransactionFromText(replyText, 'Google Gemini 1.5 Flash');
-  }
-
   // Fallback Simulation Mode
   return {
-    reply: `Halo! Saya MoneyAssist AI. Silakan masukkan GEMINI_API_KEY, GROQ_API_KEY, atau OPENROUTER_API_KEY di file .env.local untuk mengaktifkan AI secara langsung.\n\nTips Finansial: Usahakan menyisihkan minimal 20% penghasilan untuk tabungan atau dana darurat di awal bulan!`,
+    reply: `Halo! Saya MoneyAssist AI. Silakan masukkan GROQ_API_KEY atau GEMINI_API_KEY di file .env.local untuk mengaktifkan AI secara langsung.\n\nTips Finansial: Usahakan menyisihkan minimal 20% penghasilan untuk tabungan atau dana darurat di awal bulan!`,
     provider: 'Simulasi Lokal',
   };
 }
 
 /**
- * 2. UNIFIED RECEIPT OCR VISION (Gemini Vision / Groq Vision)
+ * 2. ULTRA-FAST RECEIPT OCR VISION (Groq Vision / Gemini Flash Vision)
  */
 export async function generateReceiptOCR({
   imageBase64,
@@ -168,41 +172,25 @@ export async function generateReceiptOCR({
 }: {
   imageBase64: string;
   mimeType?: string;
-}): Promise<{ extracted: any; provider: string }> {
+}): Promise<{ extracted: any; provider: string; executionTimeMs?: number }> {
+  const startTime = Date.now();
   const provider = getActiveProvider();
   const base64Clean = imageBase64.replace(/^data:image\/\w+;base64,/, '');
 
   const prompt = `
-Analisis gambar struk / nota pembayaran ini secara detail.
-Ekstrak informasi berikut dan berikan HANYA format JSON murni tanpa markdown, tanpa teks pembuka atau penutup:
+Analisis gambar struk / nota pembayaran ini secara cepat dan tepat.
+Output HANYA JSON murni tanpa markdown:
 {
-  "merchant": "Nama Toko / Tempat Usaha",
+  "merchant": "Nama Toko / Resto",
   "amount": 125000,
   "date": "2026-05-20",
   "category": "Makanan & Minuman | Transportasi | Belanja & Kebutuhan | Tagihan & Utilitas | Hiburan & Rekreasi | Kesehatan & Medis | Lain-lain",
   "items": ["Item 1 (Qty x Harga)", "Item 2"],
-  "notes": "Ringkasan singkat struk"
+  "notes": "Ringkasan struk"
 }
+Rules: "amount" angka murni tanpa titik/koma (misal 54000). "date" format YYYY-MM-DD.`;
 
-Peraturan:
-1. "amount" harus berupa angka numerik murni (misal: jika total Rp 54.000, tulis 54000).
-2. "date" harus berformat YYYY-MM-DD. Jika tahun tidak tertera jelas, gunakan tahun sekarang (${new Date().getFullYear()}).
-3. "category" pilih salah satu kategori yang paling relevan.
-`;
-
-  // 1. GEMINI VISION
-  if (provider === 'gemini') {
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-    const result = await model.generateContent([
-      { inlineData: { data: base64Clean, mimeType } },
-      { text: prompt },
-    ]);
-    const cleanJson = result.response.text().replace(/```json/g, '').replace(/```/g, '').trim();
-    return { extracted: JSON.parse(cleanJson), provider: 'Gemini Vision' };
-  }
-
-  // 2. GROQ VISION (Llama 3.2 11B Vision)
+  // 1. GROQ VISION (Ultra-Fast ~300ms)
   if (provider === 'groq') {
     const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
@@ -224,7 +212,9 @@ Peraturan:
             ],
           },
         ],
-        temperature: 0.2,
+        temperature: 0.1,
+        max_tokens: 512,
+        response_format: { type: 'json_object' },
       }),
     });
 
@@ -236,25 +226,58 @@ Peraturan:
     const data = await res.json();
     const content = data.choices[0]?.message?.content || '{}';
     const cleanJson = content.replace(/```json/g, '').replace(/```/g, '').trim();
-    return { extracted: JSON.parse(cleanJson), provider: 'Groq Vision (Llama 3.2)' };
+    const executionTimeMs = Date.now() - startTime;
+    return {
+      extracted: JSON.parse(cleanJson),
+      provider: `⚡ Groq Vision (${executionTimeMs}ms)`,
+      executionTimeMs,
+    };
+  }
+
+  // 2. GEMINI FLASH VISION (Optimized)
+  if (provider === 'gemini') {
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-1.5-flash',
+      generationConfig: {
+        temperature: 0.1,
+        maxOutputTokens: 512,
+        responseMimeType: 'application/json',
+      },
+    });
+
+    const result = await model.generateContent([
+      { inlineData: { data: base64Clean, mimeType } },
+      { text: prompt },
+    ]);
+
+    const cleanJson = result.response.text().replace(/```json/g, '').replace(/```/g, '').trim();
+    const executionTimeMs = Date.now() - startTime;
+    return {
+      extracted: JSON.parse(cleanJson),
+      provider: `✨ Gemini Flash (${executionTimeMs}ms)`,
+      executionTimeMs,
+    };
   }
 
   // Fallback Mock OCR
+  const executionTimeMs = Date.now() - startTime;
   return {
     extracted: {
       merchant: 'Indomaret Point (Simulasi)',
-      amount: 52000,
+      amount: 47500,
       date: new Date().toISOString().split('T')[0],
       category: 'Makanan & Minuman',
-      items: ['Roti Gandum - Rp 22.000', 'Susu UHT 1L - Rp 21.000', 'Air Mineral 600ml - Rp 9.000'],
-      notes: 'Mode Simulasi: Masukkan GEMINI_API_KEY atau GROQ_API_KEY di .env.local untuk live scanning.',
+      items: ['Roti Tawar - Rp 18.000', 'Susu UHT 1L - Rp 21.500', 'Air Mineral - Rp 8.000'],
+      notes: 'Mode Simulasi: Masukkan GROQ_API_KEY atau GEMINI_API_KEY di .env.local untuk live ultra-fast scanning.',
     },
-    provider: 'Simulasi OCR',
+    provider: `Simulasi (${executionTimeMs}ms)`,
+    executionTimeMs,
   };
 }
 
 /**
- * 3. UNIFIED FINANCIAL HEALTH AUDIT
+ * 3. FAST FINANCIAL HEALTH AUDIT
  */
 export async function generateFinancialAudit({
   income,
@@ -303,7 +326,8 @@ Berikan hasil dalam format JSON murni tanpa markdown dengan schema:
       body: JSON.stringify({
         model: 'llama-3.3-70b-versatile',
         messages: [{ role: 'user', content: prompt }],
-        temperature: 0.3,
+        temperature: 0.2,
+        response_format: { type: 'json_object' },
       }),
     });
     const data = await res.json();
@@ -317,7 +341,13 @@ Berikan hasil dalam format JSON murni tanpa markdown dengan schema:
   // 2. GEMINI AUDIT
   if (provider === 'gemini') {
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-1.5-flash',
+      generationConfig: {
+        temperature: 0.2,
+        responseMimeType: 'application/json',
+      },
+    });
     const result = await model.generateContent(prompt);
     const cleanJson = result.response.text().replace(/```json/g, '').replace(/```/g, '').trim();
     return JSON.parse(cleanJson);
