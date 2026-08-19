@@ -378,53 +378,59 @@ Aturan Khusus:
 4. Kembalikan HANYA JSON murni tanpa markdown, tanpa teks pembuka/penutup.`;
 
   // -------------------------------------------------------------
-  // 1. GOOGLE GEMINI FLASH LATEST REST API (Primary Vision Engine)
+  // 1. GOOGLE GEMINI VISION ENGINE (Auto-Fallback across latest models)
   // -------------------------------------------------------------
   if (geminiKey) {
-    try {
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${geminiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [
-              {
-                parts: [
-                  {
-                    inline_data: {
-                      mime_type: mimeType,
-                      data: base64Clean,
-                    },
-                  },
-                  { text: prompt },
-                ],
-              },
-            ],
-            generationConfig: {
-              temperature: 0.1,
-              responseMimeType: 'application/json',
-            },
-          }),
-        }
-      );
+    const geminiVisionModels = [
+      'gemini-flash-lite-latest',
+      'gemini-3.6-flash',
+      'gemini-3.5-flash-lite',
+      'gemini-flash-latest',
+    ];
 
-      if (res.ok) {
-        const data = await res.json();
-        const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
-        const cleanJson = text.replace(/```json/g, '').replace(/```/g, '').trim();
-        const executionTimeMs = Date.now() - startTime;
-        return {
-          extracted: JSON.parse(cleanJson),
-          provider: `Google Gemini Flash Vision (${executionTimeMs}ms)`,
-          executionTimeMs,
-        };
-      } else {
-        const errText = await res.text();
-        console.warn('Gemini REST vision error:', errText);
+    for (const model of geminiVisionModels) {
+      try {
+        const res = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [
+                {
+                  parts: [
+                    {
+                      inline_data: {
+                        mime_type: mimeType,
+                        data: base64Clean,
+                      },
+                    },
+                    { text: prompt },
+                  ],
+                },
+              ],
+              generationConfig: {
+                temperature: 0.1,
+                responseMimeType: 'application/json',
+              },
+            }),
+          }
+        );
+
+        if (res.ok) {
+          const data = await res.json();
+          const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+          const cleanJson = text.replace(/```json/g, '').replace(/```/g, '').trim();
+          const executionTimeMs = Date.now() - startTime;
+          return {
+            extracted: JSON.parse(cleanJson),
+            provider: `Google Gemini (${model}) (${executionTimeMs}ms)`,
+            executionTimeMs,
+          };
+        }
+      } catch (e: any) {
+        console.warn(`Gemini vision (${model}) attempt failed:`, e);
       }
-    } catch (e: any) {
-      console.warn('Gemini vision OCR error, attempting OpenRouter/Groq fallbacks:', e);
     }
   }
 
