@@ -23,83 +23,13 @@ import TrendChart from '@/components/dashboard/TrendChart';
 import RecentTransactions from '@/components/dashboard/RecentTransactions';
 import TransactionModal from '@/components/transactions/TransactionModal';
 import { createClient } from '@/lib/supabase/client';
-import { Transaction, Category, Profile } from '@/lib/types/database';
+import { Transaction, Category, SavingsGoal } from '@/lib/types/database';
 import { formatIDR, evaluateFinancialHealth } from '@/lib/utils/currency';
-
-const MOCK_CATEGORIES: Category[] = [
-  { id: '1', name: 'Makanan & Minuman', type: 'expense', icon: 'Utensils', color: '#ef4444', is_system: true, user_id: null, created_at: '' },
-  { id: '2', name: 'Transportasi', type: 'expense', icon: 'Car', color: '#f97316', is_system: true, user_id: null, created_at: '' },
-  { id: '3', name: 'Belanja & Kebutuhan', type: 'expense', icon: 'ShoppingBag', color: '#f59e0b', is_system: true, user_id: null, created_at: '' },
-  { id: '4', name: 'Tagihan & Utilitas', type: 'expense', icon: 'Receipt', color: '#8b5cf6', is_system: true, user_id: null, created_at: '' },
-  { id: '5', name: 'Gaji Utama', type: 'income', icon: 'Wallet', color: '#10b981', is_system: true, user_id: null, created_at: '' },
-];
-
-const INITIAL_TRANSACTIONS: Transaction[] = [
-  {
-    id: 'tx-1',
-    user_id: 'user-1',
-    category_id: '5',
-    type: 'income',
-    amount: 8500000,
-    description: 'Gaji Bulanan',
-    transaction_date: new Date().toISOString().split('T')[0],
-    payment_method: 'Transfer Bank',
-    receipt_url: null,
-    notes: null,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-    categories: MOCK_CATEGORIES[4],
-  },
-  {
-    id: 'tx-2',
-    user_id: 'user-1',
-    category_id: '1',
-    type: 'expense',
-    amount: 350000,
-    description: 'Makan Malam Resto & Kopi',
-    transaction_date: new Date().toISOString().split('T')[0],
-    payment_method: 'QRIS',
-    receipt_url: null,
-    notes: null,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-    categories: MOCK_CATEGORIES[0],
-  },
-  {
-    id: 'tx-3',
-    user_id: 'user-1',
-    category_id: '4',
-    type: 'expense',
-    amount: 750000,
-    description: 'Tagihan Listrik PLN & Wi-Fi',
-    transaction_date: new Date().toISOString().split('T')[0],
-    payment_method: 'Transfer Bank',
-    receipt_url: null,
-    notes: null,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-    categories: MOCK_CATEGORIES[3],
-  },
-  {
-    id: 'tx-4',
-    user_id: 'user-1',
-    category_id: '3',
-    type: 'expense',
-    amount: 600000,
-    description: 'Belanja Bulanan Supermarket',
-    transaction_date: new Date().toISOString().split('T')[0],
-    payment_method: 'Kartu Debit',
-    receipt_url: null,
-    notes: null,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-    categories: MOCK_CATEGORIES[2],
-  },
-];
 
 export default function DashboardPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [savingsGoals, setSavingsGoals] = useState<SavingsGoal[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const supabase = createClient();
@@ -108,15 +38,14 @@ export default function DashboardPage() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
 
-      // Fetch Categories
+      // 1. Fetch Categories
       const { data: catData } = await supabase
         .from('categories')
         .select('*')
         .order('name');
-      const loadedCategories = catData && catData.length > 0 ? catData : MOCK_CATEGORIES;
-      setCategories(loadedCategories);
+      setCategories(catData || []);
 
-      // Fetch Transactions
+      // 2. Fetch User Real Transactions
       if (user) {
         const { data: txData } = await supabase
           .from('transactions')
@@ -124,23 +53,22 @@ export default function DashboardPage() {
           .order('transaction_date', { ascending: false })
           .limit(20);
 
-        if (txData && txData.length > 0) {
-          setTransactions(txData);
-        } else {
-          setTransactions(INITIAL_TRANSACTIONS);
-        }
+        setTransactions(txData || []);
+
+        // 3. Fetch User Real Savings Goals
+        const { data: goalsData } = await supabase
+          .from('savings_goals')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(3);
+
+        setSavingsGoals(goalsData || []);
       } else {
         const local = localStorage.getItem('moneyassist_demo_tx');
-        if (local) {
-          setTransactions(JSON.parse(local));
-        } else {
-          setTransactions(INITIAL_TRANSACTIONS);
-        }
+        setTransactions(local ? JSON.parse(local) : []);
       }
     } catch (err) {
       console.error('Error fetching dashboard data:', err);
-      setTransactions(INITIAL_TRANSACTIONS);
-      setCategories(MOCK_CATEGORIES);
     } finally {
       setLoading(false);
     }
@@ -150,7 +78,7 @@ export default function DashboardPage() {
     fetchData();
   }, []);
 
-  // Compute stats
+  // Compute real stats
   const totalIncome = transactions
     .filter((t) => t.type === 'income')
     .reduce((sum, t) => sum + Number(t.amount), 0);
@@ -160,7 +88,6 @@ export default function DashboardPage() {
     .reduce((sum, t) => sum + Number(t.amount), 0);
 
   const balance = totalIncome - totalExpense;
-
   const health = evaluateFinancialHealth(totalIncome, totalExpense);
 
   // Category breakdown for chart
@@ -182,15 +109,32 @@ export default function DashboardPage() {
     color: item.color,
   }));
 
-  // Trend data mock
-  const trendData = [
-    { month: 'Jan', income: 7800000, expense: 5200000 },
-    { month: 'Feb', income: 8000000, expense: 5800000 },
-    { month: 'Mar', income: 8200000, expense: 6100000 },
-    { month: 'Apr', income: 8500000, expense: 5400000 },
-    { month: 'Mei', income: 9000000, expense: 6300000 },
-    { month: 'Bulan Ini', income: totalIncome, expense: totalExpense },
-  ];
+  // Generate real monthly trend data for last 6 months
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+  const now = new Date();
+  const currentMonthIdx = now.getMonth();
+
+  const trendData = Array.from({ length: 6 }).map((_, i) => {
+    const d = new Date(now.getFullYear(), currentMonthIdx - (5 - i), 1);
+    const mName = monthNames[d.getMonth()];
+    const mYear = d.getFullYear();
+    const mNum = String(d.getMonth() + 1).padStart(2, '0');
+    const prefix = `${mYear}-${mNum}`;
+
+    const monthIncome = transactions
+      .filter((t) => t.type === 'income' && t.transaction_date.startsWith(prefix))
+      .reduce((sum, t) => sum + Number(t.amount), 0);
+
+    const monthExpense = transactions
+      .filter((t) => t.type === 'expense' && t.transaction_date.startsWith(prefix))
+      .reduce((sum, t) => sum + Number(t.amount), 0);
+
+    return {
+      month: i === 5 ? 'Bulan Ini' : mName,
+      income: monthIncome,
+      expense: monthExpense,
+    };
+  });
 
   return (
     <div className="space-y-6">
@@ -212,7 +156,7 @@ export default function DashboardPage() {
             <div>
               <h3 className="text-sm font-bold text-white">Fitur AI 2.0 Siap Digunakan</h3>
               <p className="text-xs text-slate-400">
-                Pindai nota/struk atau tanyakan strategi hemat ke asisten AI
+                Pindai nota/struk kilat atau tanyakan strategi hemat ke asisten AI
               </p>
             </div>
           </div>
@@ -247,33 +191,36 @@ export default function DashboardPage() {
           <StatCard
             title="Total Sisa Saldo"
             value={formatIDR(balance)}
-            subtitle="Saldo aktif bulan ini"
+            subtitle="Saldo aktif akun Anda"
             icon={Wallet}
             accentColor="emerald"
-            trend={{ value: '+12.4%', isPositive: true }}
           />
           <StatCard
             title="Total Pemasukan"
             value={formatIDR(totalIncome)}
-            subtitle="Pemasukan tercatat"
+            subtitle={`${transactions.filter(t => t.type === 'income').length} transaksi masuk`}
             icon={ArrowDownRight}
             accentColor="blue"
-            trend={{ value: '+8.1%', isPositive: true }}
           />
           <StatCard
             title="Total Pengeluaran"
             value={formatIDR(totalExpense)}
-            subtitle="Pengeluaran tercatat"
+            subtitle={`${transactions.filter(t => t.type === 'expense').length} transaksi keluar`}
             icon={ArrowUpRight}
             accentColor="rose"
-            trend={{ value: '-3.2%', isPositive: false }}
           />
           <StatCard
             title="Kesehatan Finansial"
             value={`${health.score} / 100`}
             subtitle={health.status}
             icon={ShieldCheck}
-            accentColor={health.status === 'Critical Status' ? 'rose' : health.status === 'Elevated Spending' ? 'amber' : 'emerald'}
+            accentColor={
+              health.status === 'Critical Status'
+                ? 'rose'
+                : health.status === 'Elevated Spending'
+                ? 'amber'
+                : 'emerald'
+            }
           />
         </div>
 
@@ -287,7 +234,7 @@ export default function DashboardPage() {
                   <TrendingUp className="w-4 h-4 text-emerald-400" />
                   Tren Arus Kas Bulanan
                 </h3>
-                <p className="text-xs text-slate-400">Komparasi pemasukan vs pengeluaran</p>
+                <p className="text-xs text-slate-400">Komparasi pemasukan vs pengeluaran riil</p>
               </div>
             </div>
             <TrendChart data={trendData} />
@@ -315,7 +262,7 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-sm font-bold text-white">Transaksi Terbaru</h3>
-                <p className="text-xs text-slate-400">Riwayat pencatatan terakhir</p>
+                <p className="text-xs text-slate-400">Riwayat pencatatan akun Anda</p>
               </div>
               <Link
                 href="/transactions"
@@ -348,34 +295,37 @@ export default function DashboardPage() {
                 </Link>
               </div>
 
-              {/* Sample Target Card */}
-              <div className="p-4 rounded-xl bg-slate-900/80 border border-white/5 space-y-3">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-semibold text-white">Dana Darurat 6 Bulan</span>
-                  <span className="text-emerald-400 font-bold">65%</span>
+              {savingsGoals.length === 0 ? (
+                <div className="p-6 text-center text-slate-500 text-xs rounded-2xl bg-slate-900/40 border border-white/5 space-y-2">
+                  <Target className="w-8 h-8 mx-auto text-slate-600" />
+                  <p className="font-semibold text-slate-300">Belum ada target tabungan aktif</p>
+                  <p className="text-[11px] text-slate-500">Mulai buat target dana darurat atau impian Anda.</p>
                 </div>
-                <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
-                  <div className="bg-emerald-500 h-2 rounded-full w-[65%]"></div>
+              ) : (
+                <div className="space-y-3">
+                  {savingsGoals.map((g) => {
+                    const percentage = Math.min(100, Math.round((g.current_amount / g.target_amount) * 100));
+                    return (
+                      <div key={g.id} className="p-4 rounded-xl bg-slate-900/80 border border-white/5 space-y-3">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-semibold text-white truncate max-w-[160px]">{g.name}</span>
+                          <span className="text-emerald-400 font-bold">{percentage}%</span>
+                        </div>
+                        <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+                          <div
+                            className="bg-emerald-500 h-2 rounded-full transition-all"
+                            style={{ width: `${percentage}%` }}
+                          ></div>
+                        </div>
+                        <div className="flex justify-between text-[11px] text-slate-400">
+                          <span>Terkumpul: {formatIDR(g.current_amount)}</span>
+                          <span>Target: {formatIDR(g.target_amount)}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-                <div className="flex justify-between text-[11px] text-slate-400">
-                  <span>Terkumpul: {formatIDR(19500000)}</span>
-                  <span>Target: {formatIDR(30000000)}</span>
-                </div>
-              </div>
-
-              <div className="p-4 rounded-xl bg-slate-900/80 border border-white/5 space-y-3">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-semibold text-white">Liburan Akhir Tahun</span>
-                  <span className="text-cyan-400 font-bold">40%</span>
-                </div>
-                <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
-                  <div className="bg-cyan-500 h-2 rounded-full w-[40%]"></div>
-                </div>
-                <div className="flex justify-between text-[11px] text-slate-400">
-                  <span>Terkumpul: {formatIDR(4000000)}</span>
-                  <span>Target: {formatIDR(10000000)}</span>
-                </div>
-              </div>
+              )}
             </div>
 
             <Link
