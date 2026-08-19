@@ -16,6 +16,10 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     monthly_income NUMERIC(15, 2) DEFAULT 0,
     currency TEXT DEFAULT 'IDR',
     financial_status TEXT DEFAULT 'Controlled Spending',
+    telegram_id TEXT UNIQUE,
+    telegram_username TEXT,
+    pairing_code TEXT,
+    api_token UUID DEFAULT uuid_generate_v4(),
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -35,12 +39,13 @@ CREATE POLICY "Users can update their own profile"
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-    INSERT INTO public.profiles (id, email, full_name, avatar_url)
+    INSERT INTO public.profiles (id, email, full_name, avatar_url, pairing_code)
     VALUES (
         NEW.id,
         NEW.email,
         COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.raw_user_meta_data->>'name', split_part(NEW.email, '@', 1)),
-        NEW.raw_user_meta_data->>'avatar_url'
+        NEW.raw_user_meta_data->>'avatar_url',
+        UPPER(SUBSTRING(MD5(RANDOM()::TEXT), 1, 6))
     );
     RETURN NEW;
 END;
@@ -266,7 +271,6 @@ CREATE POLICY "Users can insert their own AI messages"
 -- ==========================================================
 -- 8. STORAGE BUCKET SETUP (Receipts)
 -- ==========================================================
--- To run in Supabase SQL editor:
 INSERT INTO storage.buckets (id, name, public)
 VALUES ('receipts', 'receipts', true)
 ON CONFLICT (id) DO NOTHING;

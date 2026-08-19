@@ -9,6 +9,7 @@ import {
   Bot,
   PieChart,
   Target,
+  Smartphone,
   LogOut,
   Sparkles,
   ChevronRight,
@@ -48,6 +49,12 @@ const navItems = [
     name: 'Target Tabungan',
     href: '/savings',
     icon: Target,
+  },
+  {
+    name: 'Pintasan & Bot',
+    href: '/integrations',
+    icon: Smartphone,
+    badge: 'iOS & Bot',
   },
 ];
 
