@@ -21,19 +21,62 @@ function getSupabaseAdmin() {
   return createClient(url, key);
 }
 
-async function sendTelegramMessage(botToken: string, chatId: string | number, text: string, parseMode: string = 'HTML') {
+const MAIN_KEYBOARD = {
+  keyboard: [
+    [{ text: 'Cek Saldo' }, { text: 'Riwayat Transaksi' }],
+    [{ text: 'Analisis Keuangan' }, { text: 'Panduan Format' }],
+  ],
+  resize_keyboard: true,
+  is_persistent: true,
+};
+
+const INLINE_QUICK_ACTIONS = {
+  inline_keyboard: [
+    [
+      { text: 'Riwayat Terakhir', callback_data: 'history' },
+      { text: 'Cek Saldo', callback_data: 'balance' },
+    ],
+    [
+      { text: 'Buka Web Dashboard', url: 'https://money-assist2-0.vercel.app/dashboard' },
+    ],
+  ],
+};
+
+async function sendTelegramMessage(
+  botToken: string,
+  chatId: string | number,
+  text: string,
+  replyMarkup?: any,
+  parseMode: string = 'HTML'
+) {
   try {
+    const body: any = {
+      chat_id: chatId,
+      text,
+      parse_mode: parseMode,
+    };
+    if (replyMarkup) {
+      body.reply_markup = replyMarkup;
+    }
     await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text,
-        parse_mode: parseMode,
-      }),
+      body: JSON.stringify(body),
     });
   } catch (err) {
     console.error('Failed to send Telegram message:', err);
+  }
+}
+
+async function answerCallbackQuery(botToken: string, callbackQueryId: string) {
+  try {
+    await fetch(`https://api.telegram.org/bot${botToken}/answerCallbackQuery`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ callback_query_id: callbackQueryId }),
+    });
+  } catch (err) {
+    console.error('Failed to answer callback query:', err);
   }
 }
 
@@ -43,6 +86,51 @@ export async function POST(req: NextRequest) {
   try {
     const update = await req.json();
     const supabase = getSupabaseAdmin();
+
+    // -------------------------------------------------------------
+    // HANDLE CALLBACK QUERY (Inline Button Clicks)
+    // -------------------------------------------------------------
+    if (update.callback_query) {
+      const cb = update.callback_query;
+      const chatId = cb.message?.chat?.id;
+      const telegramId = cb.from.id.toString();
+      const action = cb.data;
+
+      await answerCallbackQuery(botToken, cb.id);
+
+      // Get profile
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('telegram_id', telegramId)
+        .single();
+
+      if (!profile) {
+        await sendTelegramMessage(
+          botToken,
+          chatId,
+          `Akun belum terhubung. Silakan kirimkan Kode Pairing Anda untuk menghubungkan akun.`
+        );
+        return NextResponse.json({ ok: true });
+      }
+
+      if (action === 'history' || action === 'btn_history') {
+        await handleHistoryCommand(botToken, chatId, profile.id, supabase);
+        return NextResponse.json({ ok: true });
+      }
+
+      if (action === 'balance' || action === 'btn_balance') {
+        await handleBalanceCommand(botToken, chatId, telegramId, profile.id, supabase);
+        return NextResponse.json({ ok: true });
+      }
+
+      if (action === 'health' || action === 'btn_health') {
+        await handleHealthCommand(botToken, chatId, telegramId, profile.id, supabase);
+        return NextResponse.json({ ok: true });
+      }
+
+      return NextResponse.json({ ok: true });
+    }
 
     const message = update.message;
     if (!message) {
@@ -95,10 +183,9 @@ export async function POST(req: NextRequest) {
             chatId,
             `<b>Koneksi Akun Berhasil</b>\n\n` +
               `Akun atas nama <b>${pairRes.full_name || pairRes.email}</b> telah terhubung dengan MoneyAssist 2.0.\n\n` +
-              `<b>Panduan Penggunaan:</b>\n` +
-              `- Catat Transaksi: Ketik pesan pengeluaran (contoh: <i>Beli bensin 50000</i> atau <i>Makan siang 25rb</i>)\n` +
-              `- Scan Struk: Kirimkan foto nota/struk belanja atau tangkapan layar mutasi perbankan\n` +
-              `- Informasi Saldo: Ketik <code>/saldo</code>`
+              `<b>Pilihan Menu Cepat:</b>\n` +
+              `Gunakan tombol pilihan menu di bawah untuk memeriksa saldo, riwayat, atau analisis keuangan Anda.`,
+            MAIN_KEYBOARD
           );
           return NextResponse.json({ ok: true });
         }
@@ -110,10 +197,8 @@ export async function POST(req: NextRequest) {
           chatId,
           `<b>MoneyAssist 2.0 Financial System</b>\n\n` +
             `Akun Telegram Anda aktif terhubung dengan <b>${profile.full_name || profile.email}</b>.\n\n` +
-            `<b>Format Penggunaan:</b>\n` +
-            `- Catat Transaksi: Ketik nominal dan keterangan (contoh: <i>Makan siang 25000</i>)\n` +
-            `- Scan Dokumen: Kirimkan foto struk pembayaran\n` +
-            `- Ringkasan Saldo: Ketik <code>/saldo</code>`
+            `Gunakan menu di bawah atau langsung ketik transaksi Anda (contoh: <i>Makan siang 25rb</i> atau kirim foto struk).`,
+          MAIN_KEYBOARD
         );
       } else {
         await sendTelegramMessage(
@@ -160,11 +245,12 @@ export async function POST(req: NextRequest) {
             chatId,
             `<b>Koneksi Akun Berhasil</b>\n\n` +
               `Akun atas nama <b>${pairRes.full_name || pairRes.email}</b> berhasil terhubung ke MoneyAssist 2.0.\n\n` +
-              `Anda dapat langsung mencatat transaksi dengan mengetik pesan (contoh: <i>Beli bensin 50000</i>) atau mengirim foto struk.`
+              `Menu pilihan instan telah diaktifkan pada tombol chat Anda.`,
+            MAIN_KEYBOARD
           );
           return NextResponse.json({ ok: true });
         } else {
-          // Direct fallback if RPC is not yet created in Supabase
+          // Direct fallback
           const { data: directProfiles } = await supabase
             .from('profiles')
             .select('*')
@@ -184,7 +270,8 @@ export async function POST(req: NextRequest) {
               botToken,
               chatId,
               `<b>Koneksi Akun Berhasil</b>\n\n` +
-                `Akun atas nama <b>${matched.full_name || matched.email}</b> berhasil terhubung.`
+                `Akun atas nama <b>${matched.full_name || matched.email}</b> berhasil terhubung.`,
+              MAIN_KEYBOARD
             );
             return NextResponse.json({ ok: true });
           }
@@ -212,47 +299,74 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
+    const textLower = (message.text || '').toLowerCase().trim();
+
     // -------------------------------------------------------------
-    // COMMAND: /saldo or /status or "saldo"
+    // TEMPLATE 1: CEK SALDO / RINGKASAN SALDO
     // -------------------------------------------------------------
     if (
-      message.text &&
-      (message.text.startsWith('/saldo') ||
-        message.text.startsWith('/status') ||
-        message.text.toLowerCase() === 'saldo' ||
-        message.text.toLowerCase() === 'cek saldo')
+      textLower === 'cek saldo' ||
+      textLower === 'saldo' ||
+      textLower === '/saldo' ||
+      textLower === '/status'
     ) {
-      let income = 0;
-      let expense = 0;
-      let balance = 0;
+      await handleBalanceCommand(botToken, chatId, telegramId, profile.id, supabase);
+      return NextResponse.json({ ok: true });
+    }
 
-      const { data: summaryData } = await supabase.rpc('get_telegram_summary', {
-        p_telegram_id: telegramId,
-      });
+    // -------------------------------------------------------------
+    // TEMPLATE 2: RIWAYAT TRANSAKSI
+    // -------------------------------------------------------------
+    if (
+      textLower === 'riwayat transaksi' ||
+      textLower === 'riwayat' ||
+      textLower === '/riwayat' ||
+      textLower === 'history' ||
+      textLower === '/history'
+    ) {
+      await handleHistoryCommand(botToken, chatId, profile.id, supabase);
+      return NextResponse.json({ ok: true });
+    }
 
-      if (summaryData && summaryData.found) {
-        income = Number(summaryData.income) || 0;
-        expense = Number(summaryData.expense) || 0;
-        balance = Number(summaryData.balance) || 0;
-      } else {
-        const { data: txs } = await supabase
-          .from('transactions')
-          .select('amount, type')
-          .eq('user_id', profile.id);
+    // -------------------------------------------------------------
+    // TEMPLATE 3: ANALISIS KEUANGAN
+    // -------------------------------------------------------------
+    if (
+      textLower === 'analisis keuangan' ||
+      textLower === 'analisis' ||
+      textLower === '/analisis' ||
+      textLower === 'audit' ||
+      textLower === '/audit'
+    ) {
+      await handleHealthCommand(botToken, chatId, telegramId, profile.id, supabase);
+      return NextResponse.json({ ok: true });
+    }
 
-        income = txs?.filter((t) => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0) || 0;
-        expense = txs?.filter((t) => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0) || 0;
-        balance = income - expense;
-      }
-
+    // -------------------------------------------------------------
+    // TEMPLATE 4: PANDUAN FORMAT / BANTUAN
+    // -------------------------------------------------------------
+    if (
+      textLower === 'panduan format' ||
+      textLower === 'bantuan' ||
+      textLower === '/help' ||
+      textLower === 'help' ||
+      textLower === 'menu'
+    ) {
       await sendTelegramMessage(
         botToken,
         chatId,
-        `<b>Ringkasan Finansial Akun</b>\n\n` +
-          `• Sisa Saldo: <b>${formatIDR(balance)}</b>\n` +
-          `• Total Pemasukan: ${formatIDR(income)}\n` +
-          `• Total Pengeluaran: ${formatIDR(expense)}\n\n` +
-          `Data diperbarui secara real-time dari database MoneyAssist 2.0.`
+        `<b>Panduan Penggunaan MoneyAssist 2.0</b>\n\n` +
+          `<b>1. Mencatat Transaksi Instan:</b>\n` +
+          `Ketik pesan pengeluaran atau pemasukan secara langsung:\n` +
+          `• <i>Beli bensin 50000</i> (atau <i>bensin 50rb</i>)\n` +
+          `• <i>Makan siang 25rb</i>\n` +
+          `• <i>Gaji bulanan 8.5jt</i>\n` +
+          `• <i>Bayar tagihan listrik 150k</i>\n\n` +
+          `<b>2. Scan Gambar / Struk Kasir / Bukti Pesanan:</b>\n` +
+          `Kirimkan langsung foto nota belanja, invoice, atau screenshot detail pesanan marketplace.\n\n` +
+          `<b>3. Menu Cepat:</b>\n` +
+          `Gunakan tombol pilihan menu di bawah untuk memeriksa Saldo, Riwayat, atau Analisis Keuangan.`,
+        MAIN_KEYBOARD
       );
       return NextResponse.json({ ok: true });
     }
@@ -320,7 +434,8 @@ export async function POST(req: NextRequest) {
             `• Total Nominal: <b>${formatIDR(txData.amount)}</b>\n` +
             `• Kategori: ${txData.category || 'Belanja & Kebutuhan'}\n` +
             `• Tanggal: ${txData.date || new Date().toISOString().split('T')[0]}${itemsDisplay}\n\n` +
-            `Transaksi telah tersimpan ke dalam akun Anda.`
+            `Transaksi telah tersimpan ke dalam akun Anda.`,
+          INLINE_QUICK_ACTIONS
         );
       } catch (photoErr: any) {
         console.error('Telegram photo processing error:', photoErr);
@@ -363,7 +478,8 @@ export async function POST(req: NextRequest) {
             `• Nominal: <b>${formatIDR(parsedTx.amount)}</b>\n` +
             `• Jenis: ${parsedTx.type === 'income' ? 'Pemasukan' : 'Pengeluaran'}\n` +
             `• Kategori: ${parsedTx.category}\n` +
-            `• Tanggal: ${today}`
+            `• Tanggal: ${today}`,
+          INLINE_QUICK_ACTIONS
         );
         return NextResponse.json({ ok: true });
       }
@@ -390,16 +506,18 @@ export async function POST(req: NextRequest) {
               `• Keterangan: <b>${tx.description}</b>\n` +
               `• Nominal: <b>${formatIDR(tx.amount)}</b>\n` +
               `• Jenis: ${tx.type === 'income' ? 'Pemasukan' : 'Pengeluaran'}\n` +
-              `• Kategori: ${tx.suggested_category || 'Umum'}`
+              `• Kategori: ${tx.suggested_category || 'Umum'}`,
+            INLINE_QUICK_ACTIONS
           );
         } else {
-          await sendTelegramMessage(botToken, chatId, aiResult.reply);
+          await sendTelegramMessage(botToken, chatId, aiResult.reply, MAIN_KEYBOARD);
         }
       } catch (aiErr: any) {
         await sendTelegramMessage(
           botToken,
           chatId,
-          `Format pesan tidak terdeteksi sebagai transaksi.\n\nContoh format yang valid:\n- <i>Beli bensin 50000</i>\n- <i>Makan siang 25rb</i>\n- <i>Gaji bulanan 8.5jt</i>\n- <i>Bayar tagihan wifi 350k</i>`
+          `Format pesan tidak terdeteksi sebagai transaksi.\n\nContoh format yang valid:\n- <i>Beli bensin 50000</i>\n- <i>Makan siang 25rb</i>\n- <i>Gaji bulanan 8.5jt</i>\n- <i>Bayar tagihan wifi 350k</i>`,
+          MAIN_KEYBOARD
         );
       }
 
@@ -411,4 +529,129 @@ export async function POST(req: NextRequest) {
     console.error('Telegram Webhook Handler Error:', err);
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
+}
+
+// -------------------------------------------------------------
+// HELPER FUNCTIONS FOR COMMANDS & TEMPLATES
+// -------------------------------------------------------------
+
+async function handleBalanceCommand(
+  botToken: string,
+  chatId: string | number,
+  telegramId: string,
+  userId: string,
+  supabase: any
+) {
+  let income = 0;
+  let expense = 0;
+  let balance = 0;
+
+  const { data: summaryData } = await supabase.rpc('get_telegram_summary', {
+    p_telegram_id: telegramId,
+  });
+
+  if (summaryData && summaryData.found) {
+    income = Number(summaryData.income) || 0;
+    expense = Number(summaryData.expense) || 0;
+    balance = Number(summaryData.balance) || 0;
+  } else {
+    const { data: txs } = await supabase
+      .from('transactions')
+      .select('amount, type')
+      .eq('user_id', userId);
+
+    income = txs?.filter((t: any) => t.type === 'income').reduce((s: number, t: any) => s + Number(t.amount), 0) || 0;
+    expense = txs?.filter((t: any) => t.type === 'expense').reduce((s: number, t: any) => s + Number(t.amount), 0) || 0;
+    balance = income - expense;
+  }
+
+  await sendTelegramMessage(
+    botToken,
+    chatId,
+    `<b>Ringkasan Finansial Akun</b>\n\n` +
+      `• Sisa Saldo: <b>${formatIDR(balance)}</b>\n` +
+      `• Total Pemasukan: ${formatIDR(income)}\n` +
+      `• Total Pengeluaran: ${formatIDR(expense)}\n\n` +
+      `<i>Data diperbarui secara real-time dari database MoneyAssist 2.0.</i>`,
+    INLINE_QUICK_ACTIONS
+  );
+}
+
+async function handleHistoryCommand(
+  botToken: string,
+  chatId: string | number,
+  userId: string,
+  supabase: any
+) {
+  const { data: txs, error } = await supabase
+    .from('transactions')
+    .select('id, description, amount, type, transaction_date, notes, categories(name)')
+    .eq('user_id', userId)
+    .order('transaction_date', { ascending: false })
+    .order('created_at', { ascending: false })
+    .limit(5);
+
+  if (error || !txs || txs.length === 0) {
+    await sendTelegramMessage(
+      botToken,
+      chatId,
+      `<b>Riwayat Transaksi</b>\n\nBelum ada transaksi yang tercatat pada akun Anda.\nKetik transaksi pertama Anda (contoh: <i>Beli kopi 25rb</i>).`,
+      MAIN_KEYBOARD
+    );
+    return;
+  }
+
+  let text = `<b>Riwayat 5 Transaksi Terakhir</b>\n\n`;
+  txs.forEach((tx: any, idx: number) => {
+    const categoryName = tx.categories?.name || 'Umum';
+    const typeLabel = tx.type === 'income' ? 'Pemasukan' : 'Pengeluaran';
+    text +=
+      `<b>${idx + 1}. ${tx.description}</b>\n` +
+      `• Nominal: <b>${formatIDR(tx.amount)}</b> (${typeLabel})\n` +
+      `• Tanggal: ${tx.transaction_date}\n` +
+      `• Kategori: ${categoryName}\n\n`;
+  });
+
+  text += `<i>Lihat riwayat lengkap dan grafik di dashboard web.</i>`;
+
+  await sendTelegramMessage(botToken, chatId, text, INLINE_QUICK_ACTIONS);
+}
+
+async function handleHealthCommand(
+  botToken: string,
+  chatId: string | number,
+  telegramId: string,
+  userId: string,
+  supabase: any
+) {
+  const { data: summaryData } = await supabase.rpc('get_telegram_summary', {
+    p_telegram_id: telegramId,
+  });
+
+  const income = Number(summaryData?.income) || 0;
+  const expense = Number(summaryData?.expense) || 0;
+  const ratio = income > 0 ? Math.round((expense / income) * 100) : expense > 0 ? 100 : 0;
+
+  let statusText = 'Controlled Spending (Terkendali)';
+  let advice = 'Pertahankan pola keuangan ini dan sisihkan minimal 20% ke tabungan/investasi.';
+
+  if (ratio > 100) {
+    statusText = 'Critical Status (Defisit)';
+    advice = 'Pengeluaran Anda melebihi pemasukan bulan ini. Prioritaskan kebutuhan pokok dan tunda pengeluaran non-primer.';
+  } else if (ratio > 70) {
+    statusText = 'Elevated Spending (Mendekati Batas)';
+    advice = 'Pengeluaran Anda mulai mendekati batas ideal. Batasi jajan dan pengeluaran hiburan.';
+  }
+
+  await sendTelegramMessage(
+    botToken,
+    chatId,
+    `<b>Analisis Kesehatan Finansial</b>\n\n` +
+      `• Status: <b>${statusText}</b>\n` +
+      `• Rasio Pengeluaran: <b>${ratio}%</b> dari pemasukan\n` +
+      `• Total Pemasukan: ${formatIDR(income)}\n` +
+      `• Total Pengeluaran: ${formatIDR(expense)}\n\n` +
+      `<b>Rekomendasi:</b>\n${advice}`,
+    INLINE_QUICK_ACTIONS
+  );
 }
