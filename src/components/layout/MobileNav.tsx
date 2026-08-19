@@ -15,8 +15,6 @@ import {
   Smartphone,
   LogOut,
   Sparkles,
-  ChevronRight,
-  ShieldCheck,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import clsx from 'clsx';
@@ -65,9 +63,9 @@ export default function MobileNav({ userEmail }: { userEmail?: string | null }) 
 
   return (
     <>
-      {/* 1. Sleek Frosted Glass Mobile Bottom Tab Bar (Fixed at bottom on mobile) */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#0b0f19]/90 backdrop-blur-xl border-t border-white/10 px-3 py-2">
-        <div className="flex items-center justify-around">
+      {/* Floating macOS/iOS Liquid Glass Bottom Dock */}
+      <div className="md:hidden fixed bottom-3 left-3 right-3 z-40">
+        <nav className="bg-[#0e1424]/90 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-macos-dock px-2 py-1.5 flex items-center justify-around">
           {mobileNavTabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = pathname === tab.href;
@@ -77,11 +75,11 @@ export default function MobileNav({ userEmail }: { userEmail?: string | null }) 
                 <Link
                   key={tab.href}
                   href={tab.href}
-                  className="flex flex-col items-center -mt-5 group"
+                  className="flex flex-col items-center -mt-6 group focus:outline-none"
                 >
-                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 p-0.5 shadow-lg shadow-emerald-500/30 group-active:scale-95 transition-transform">
-                    <div className="w-full h-full bg-[#0b0f19] rounded-[14px] flex items-center justify-center">
-                      <Icon className="w-5 h-5 text-emerald-400" />
+                  <div className="w-13 h-13 p-1 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 shadow-lg shadow-emerald-500/30 group-active:scale-90 transition-transform">
+                    <div className="w-11 h-11 bg-[#0c101a] rounded-[13px] flex items-center justify-center border border-white/10">
+                      <Icon className="w-5 h-5 text-emerald-400 stroke-[2.5]" />
                     </div>
                   </div>
                   <span className="text-[10px] font-bold text-emerald-400 mt-1">Scan OCR</span>
@@ -94,60 +92,68 @@ export default function MobileNav({ userEmail }: { userEmail?: string | null }) 
                 key={tab.href}
                 href={tab.href}
                 className={clsx(
-                  'flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all',
-                  isActive ? 'text-emerald-400 font-bold' : 'text-slate-400 hover:text-slate-200 font-medium'
+                  'flex flex-col items-center justify-center min-w-[56px] min-h-[44px] py-1 px-2 rounded-xl transition-all active:scale-95',
+                  isActive
+                    ? 'text-emerald-400 font-bold bg-emerald-500/10'
+                    : 'text-slate-400 hover:text-slate-200 font-medium'
                 )}
               >
-                <Icon className={clsx('w-5 h-5', isActive ? 'text-emerald-400 stroke-[2.5]' : 'text-slate-400')} />
-                <span className="text-[10px] mt-1">{tab.name}</span>
+                <Icon
+                  className={clsx(
+                    'w-5 h-5 transition-transform',
+                    isActive ? 'text-emerald-400 stroke-[2.5]' : 'text-slate-400'
+                  )}
+                />
+                <span className="text-[10px] mt-0.5">{tab.name}</span>
               </Link>
             );
           })}
 
-          {/* More Menu Drawer Trigger */}
+          {/* More Menu Trigger */}
           <button
             onClick={() => setIsDrawerOpen(true)}
-            className="flex flex-col items-center justify-center py-1 px-3 rounded-xl text-slate-400 hover:text-slate-200 transition-all"
+            className="flex flex-col items-center justify-center min-w-[56px] min-h-[44px] py-1 px-2 rounded-xl text-slate-400 hover:text-slate-200 transition-all active:scale-95"
+            aria-label="Buka Menu Lainnya"
           >
             <Menu className="w-5 h-5 text-slate-400" />
-            <span className="text-[10px] mt-1 font-medium">Menu</span>
+            <span className="text-[10px] mt-0.5 font-medium">Menu</span>
           </button>
-        </div>
-      </nav>
+        </nav>
+      </div>
 
-      {/* 2. Mobile Slide-Out Drawer for Secondary Navigation */}
+      {/* Mobile Slide-Out Sheet / Drawer */}
       {isDrawerOpen && (
         <div className="md:hidden fixed inset-0 z-50 flex">
           {/* Backdrop */}
           <div
-            className="fixed inset-0 bg-black/70 backdrop-blur-sm transition-opacity"
+            className="fixed inset-0 bg-black/75 backdrop-blur-md transition-opacity"
             onClick={() => setIsDrawerOpen(false)}
           />
 
-          {/* Drawer Content */}
-          <div className="relative ml-auto w-4/5 max-w-xs bg-[#0b0f19] border-l border-white/10 h-full p-6 flex flex-col justify-between shadow-2xl z-50 animate-in slide-in-from-right duration-200">
+          {/* Sheet Content */}
+          <div className="relative ml-auto w-4/5 max-w-xs bg-[#0c101a]/95 backdrop-blur-2xl border-l border-white/10 h-full p-6 flex flex-col justify-between shadow-2xl z-50 animate-in slide-in-from-right duration-200">
             <div className="space-y-6">
-              {/* Header */}
+              {/* Header with macOS Traffic Lights */}
               <div className="flex items-center justify-between border-b border-white/10 pb-4">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 p-0.5">
-                    <div className="w-full h-full bg-[#0b0f19] rounded-[10px] flex items-center justify-center">
-                      <Sparkles className="w-4 h-4 text-emerald-400" />
-                    </div>
+                <div className="flex items-center gap-2.5">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-full bg-rose-500 inline-block" />
+                    <span className="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block" />
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 inline-block" />
                   </div>
-                  <span className="font-bold text-white text-sm">MoneyAssist 2.0</span>
+                  <span className="font-bold text-white text-xs tracking-tight">MoneyAssist 2.0</span>
                 </div>
                 <button
                   onClick={() => setIsDrawerOpen(false)}
-                  className="p-1.5 rounded-lg bg-slate-900 text-slate-400 hover:text-white"
+                  className="p-1.5 rounded-xl bg-white/5 text-slate-400 hover:text-white border border-white/5 active:scale-95"
                 >
-                  <X className="w-5 h-5" />
+                  <X className="w-4 h-4" />
                 </button>
               </div>
 
-              {/* Navigation */}
+              {/* Navigation Items */}
               <div className="space-y-1">
-                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block px-3 py-1">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-3 py-1">
                   Fitur Tambahan
                 </span>
                 {secondaryNavItems.map((item) => {
@@ -159,17 +165,17 @@ export default function MobileNav({ userEmail }: { userEmail?: string | null }) 
                       href={item.href}
                       onClick={() => setIsDrawerOpen(false)}
                       className={clsx(
-                        'flex items-center justify-between px-3.5 py-3 rounded-xl text-xs font-semibold transition-all',
+                        'flex items-center justify-between px-3.5 py-3 rounded-xl text-xs font-semibold transition-all min-h-[44px]',
                         isActive
-                          ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                          : 'text-slate-300 hover:bg-white/5 hover:text-white'
+                          ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/25'
+                          : 'text-slate-300 hover:bg-white/5 hover:text-white border border-transparent'
                       )}
                     >
                       <div className="flex items-center gap-3">
                         <Icon className="w-4 h-4 text-slate-400" />
                         <span>{item.name}</span>
                       </div>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 font-mono">
+                      <span className="text-[10px] px-2 py-0.5 rounded font-mono bg-white/5 text-slate-400 border border-white/5">
                         {item.badge}
                       </span>
                     </Link>
@@ -180,19 +186,22 @@ export default function MobileNav({ userEmail }: { userEmail?: string | null }) 
 
             {/* Bottom Profile & Logout */}
             <div className="pt-4 border-t border-white/10 space-y-3">
-              <div className="p-3 rounded-xl bg-slate-900/80 border border-white/5 flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-xs">
+              <div className="p-3 rounded-xl bg-white/[0.04] border border-white/10 flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 flex items-center justify-center font-bold text-xs">
                   {userEmail ? userEmail[0].toUpperCase() : 'U'}
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-xs font-bold text-white truncate">{userEmail || 'Akun Pengguna'}</p>
-                  <p className="text-[10px] text-emerald-400">Online</p>
+                  <p className="text-[10px] text-emerald-400 font-medium flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    Supabase Online
+                  </p>
                 </div>
               </div>
 
               <button
                 onClick={handleLogout}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 text-xs font-bold transition-all"
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/20 text-xs font-bold transition-all min-h-[44px] active:scale-95"
               >
                 <LogOut className="w-4 h-4" />
                 <span>Keluar Akun</span>

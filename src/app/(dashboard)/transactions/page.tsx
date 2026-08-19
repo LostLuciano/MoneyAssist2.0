@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import {
   Search,
-  Filter,
   Plus,
   Trash2,
   Edit2,
@@ -11,10 +10,9 @@ import {
   ArrowUpRight,
   Calendar,
   Wallet,
-  Download,
-  AlertCircle,
   X,
   FileText,
+  CreditCard,
 } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import TransactionModal from '@/components/transactions/TransactionModal';
@@ -97,70 +95,59 @@ export default function TransactionsPage() {
     <div className="space-y-6">
       <Header
         title="Daftar Transaksi"
-        subtitle="Kelola dan telusuri seluruh riwayat pengeluaran dan pemasukan"
+        subtitle="Manajemen dan riwayat seluruh transaksi arus kas"
         categories={categories}
         onTransactionAdded={fetchTransactions}
       />
 
-      <div className="px-4 sm:px-6 space-y-6 max-w-7xl mx-auto">
-        {/* Filters & Search Toolbar */}
-        <div className="glass-panel p-4 rounded-2xl border border-white/5 flex flex-col md:flex-row items-center justify-between gap-4">
+      <div className="px-4 sm:px-6 space-y-5 max-w-7xl mx-auto">
+        {/* macOS Style Filter & Search Toolbar */}
+        <div className="p-4 rounded-2xl macos-card flex flex-col md:flex-row items-center justify-between gap-3.5">
+          {/* Search Input with Spotlight Style */}
           <div className="flex-1 w-full md:w-auto relative">
-            <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Cari transaksi, toko, keterangan..."
-              className="w-full pl-10 pr-4 py-2 bg-slate-900/80 border border-white/10 rounded-xl text-white text-xs focus:outline-none focus:border-emerald-500 transition-colors"
+              placeholder="Cari transaksi, merchant, catatan..."
+              className="w-full pl-10 pr-4 py-2 bg-white/[0.04] border border-white/10 rounded-xl text-white text-xs placeholder-slate-500 focus:outline-none focus:border-emerald-500/60 focus:bg-white/[0.07] transition-all min-h-[38px]"
             />
           </div>
 
-          <div className="flex items-center gap-2.5 w-full md:w-auto overflow-x-auto">
-            {/* Type selector */}
-            <div className="flex items-center p-1 bg-slate-900/80 rounded-xl border border-white/5 text-xs">
+          <div className="flex items-center gap-2.5 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
+            {/* macOS Segmented Control */}
+            <div className="macos-segmented shrink-0">
               <button
                 onClick={() => setFilterType('all')}
-                className={`px-3 py-1 rounded-lg font-medium transition-all ${
-                  filterType === 'all'
-                    ? 'bg-slate-800 text-white shadow'
-                    : 'text-slate-400 hover:text-white'
-                }`}
+                className={`macos-segmented-item ${filterType === 'all' ? 'active' : ''}`}
               >
                 Semua
               </button>
               <button
                 onClick={() => setFilterType('expense')}
-                className={`px-3 py-1 rounded-lg font-medium transition-all ${
-                  filterType === 'expense'
-                    ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
-                    : 'text-slate-400 hover:text-white'
-                }`}
+                className={`macos-segmented-item ${filterType === 'expense' ? 'active !text-rose-400' : ''}`}
               >
                 Pengeluaran
               </button>
               <button
                 onClick={() => setFilterType('income')}
-                className={`px-3 py-1 rounded-lg font-medium transition-all ${
-                  filterType === 'income'
-                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                    : 'text-slate-400 hover:text-white'
-                }`}
+                className={`macos-segmented-item ${filterType === 'income' ? 'active !text-emerald-400' : ''}`}
               >
                 Pemasukan
               </button>
             </div>
 
-            {/* Category Filter */}
+            {/* Category Dropdown */}
             {categories.length > 0 && (
               <select
                 value={filterCategory}
                 onChange={(e) => setFilterCategory(e.target.value)}
-                className="px-3 py-2 bg-slate-900/80 border border-white/10 rounded-xl text-white text-xs focus:outline-none focus:border-emerald-500"
+                className="px-3 py-2 bg-white/[0.05] border border-white/10 rounded-xl text-white text-xs focus:outline-none focus:border-emerald-500/60 transition-all min-h-[38px] shrink-0"
               >
-                <option value="all">Semua Kategori</option>
+                <option value="all" className="bg-[#0e1424] text-white">Semua Kategori</option>
                 {categories.map((c) => (
-                  <option key={c.id} value={c.id}>
+                  <option key={c.id} value={c.id} className="bg-[#0e1424] text-white">
                     {c.name}
                   </option>
                 ))}
@@ -172,100 +159,99 @@ export default function TransactionsPage() {
                 setSelectedTx(null);
                 setIsModalOpen(true);
               }}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold shrink-0 shadow-md shadow-emerald-500/20"
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold shrink-0 shadow-md shadow-emerald-500/20 active:scale-95 transition-all min-h-[38px]"
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="w-4 h-4 stroke-[2.5]" />
               <span>Tambah</span>
             </button>
           </div>
         </div>
 
-        {/* Summary Pill */}
-        <div className="flex flex-wrap items-center justify-between text-xs text-slate-400 px-2">
-          <span>Menampilkan {filteredTransactions.length} transaksi</span>
-          <div className="flex items-center gap-4">
+        {/* Summary Counter Pill */}
+        <div className="flex flex-wrap items-center justify-between text-xs text-slate-400 px-2 select-none">
+          <span>Menampilkan <strong className="text-white font-mono">{filteredTransactions.length}</strong> transaksi</span>
+          <div className="flex items-center gap-4 text-[11px] sm:text-xs">
             <span>
-              Total Pengeluaran:{' '}
-              <strong className="text-rose-400 font-bold">{formatIDR(totalFilteredExpense)}</strong>
+              Pengeluaran: <strong className="text-rose-400 font-mono">{formatIDR(totalFilteredExpense)}</strong>
             </span>
             <span>
-              Total Pemasukan:{' '}
-              <strong className="text-emerald-400 font-bold">{formatIDR(totalFilteredIncome)}</strong>
+              Pemasukan: <strong className="text-emerald-400 font-mono">{formatIDR(totalFilteredIncome)}</strong>
             </span>
           </div>
         </div>
 
-        {/* Transactions Table / List */}
-        <div className="glass-panel rounded-2xl border border-white/5 overflow-hidden">
+        {/* macOS Table Window */}
+        <div className="rounded-2xl macos-card overflow-hidden">
           {filteredTransactions.length === 0 ? (
-            <div className="p-12 text-center text-slate-500 text-sm">
-              <p>Tidak ada transaksi yang cocok dengan filter atau pencarian Anda.</p>
+            <div className="p-12 text-center text-slate-500 text-xs">
+              <p className="font-medium text-slate-400">Tidak ada transaksi yang cocok.</p>
+              <p className="text-slate-600 mt-1">Coba sesuaikan kata kunci pencarian atau filter.</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs text-slate-300">
-                <thead className="bg-slate-900/80 text-slate-400 uppercase tracking-wider font-semibold border-b border-white/5">
+                <thead className="bg-white/[0.03] text-slate-400 uppercase tracking-wider font-semibold border-b border-white/[0.06] text-[10px]">
                   <tr>
-                    <th className="px-6 py-3.5">Keterangan</th>
-                    <th className="px-6 py-3.5">Kategori</th>
-                    <th className="px-6 py-3.5">Tanggal</th>
-                    <th className="px-6 py-3.5">Metode</th>
-                    <th className="px-6 py-3.5 text-right">Nominal</th>
-                    <th className="px-6 py-3.5 text-center">Aksi</th>
+                    <th className="px-5 py-3">Keterangan</th>
+                    <th className="px-5 py-3">Kategori</th>
+                    <th className="px-5 py-3">Tanggal</th>
+                    <th className="px-5 py-3">Metode</th>
+                    <th className="px-5 py-3 text-right">Nominal</th>
+                    <th className="px-5 py-3 text-center">Aksi</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-white/5">
+                <tbody className="divide-y divide-white/[0.04]">
                   {filteredTransactions.map((tx) => {
                     const isIncome = tx.type === 'income';
                     return (
                       <tr
                         key={tx.id}
                         onClick={() => setDetailTx(tx)}
-                        className="cursor-pointer hover:bg-slate-800/40 transition-colors"
+                        className="cursor-pointer hover:bg-white/[0.04] transition-colors"
                       >
-                        <td className="px-6 py-4 font-semibold text-white">
+                        <td className="px-5 py-3.5 font-semibold text-white">
                           <div className="flex items-center gap-2.5">
                             <div
-                              className={`p-1.5 rounded-lg ${
+                              className={`p-1.5 rounded-lg border ${
                                 isIncome
-                                  ? 'bg-emerald-500/10 text-emerald-400'
-                                  : 'bg-rose-500/10 text-rose-400'
+                                  ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/20'
+                                  : 'bg-rose-500/15 text-rose-400 border-rose-500/20'
                               }`}
                             >
                               {isIncome ? (
-                                <ArrowDownRight className="w-3.5 h-3.5" />
+                                <ArrowDownRight className="w-3.5 h-3.5 stroke-[2.2]" />
                               ) : (
-                                <ArrowUpRight className="w-3.5 h-3.5" />
+                                <ArrowUpRight className="w-3.5 h-3.5 stroke-[2.2]" />
                               )}
                             </div>
                             <span className="truncate max-w-xs">{tx.description}</span>
                           </div>
                         </td>
-                        <td className="px-6 py-4">
-                          <span className="px-2.5 py-1 rounded-full bg-slate-800 text-slate-300 border border-white/5">
+                        <td className="px-5 py-3.5">
+                          <span className="px-2.5 py-0.5 rounded-full bg-white/[0.05] text-slate-300 border border-white/[0.08] text-[11px]">
                             {tx.categories?.name || 'Umum'}
                           </span>
                         </td>
-                        <td className="px-6 py-4 text-slate-400">
+                        <td className="px-5 py-3.5 text-slate-400 text-[11px]">
                           {formatDateID(tx.transaction_date, 'dd MMM yyyy')}
                         </td>
-                        <td className="px-6 py-4 text-slate-400">{tx.payment_method || 'Cash'}</td>
+                        <td className="px-5 py-3.5 text-slate-400 text-[11px]">{tx.payment_method || 'Cash'}</td>
                         <td
-                          className={`px-6 py-4 text-right font-bold text-sm ${
+                          className={`px-5 py-3.5 text-right font-bold text-xs sm:text-sm font-mono ${
                             isIncome ? 'text-emerald-400' : 'text-rose-400'
                           }`}
                         >
                           {isIncome ? '+' : '-'} {formatIDR(tx.amount)}
                         </td>
-                        <td className="px-6 py-4 text-center">
-                          <div className="flex items-center justify-center gap-2">
+                        <td className="px-5 py-3.5 text-center">
+                          <div className="flex items-center justify-center gap-1.5">
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setSelectedTx(tx);
                                 setIsModalOpen(true);
                               }}
-                              className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
+                              className="p-1.5 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors active:scale-95"
                               title="Edit Transaksi"
                             >
                               <Edit2 className="w-3.5 h-3.5" />
@@ -275,7 +261,7 @@ export default function TransactionsPage() {
                                 e.stopPropagation();
                                 handleDelete(tx.id);
                               }}
-                              className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors"
+                              className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-rose-500/15 rounded-lg transition-colors active:scale-95"
                               title="Hapus Transaksi"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
@@ -307,70 +293,80 @@ export default function TransactionsPage() {
         categories={categories}
       />
 
+      {/* macOS Inspector / Detail Sheet Dialog */}
       {detailTx && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-150">
-          <div className="w-full max-w-2xl overflow-hidden rounded-2xl border border-white/10 bg-[#0f172a] shadow-2xl">
-            <div className="flex items-start justify-between gap-4 border-b border-white/5 p-5">
-              <div>
-                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Detail Transaksi</p>
-                <h2 className="mt-1 text-lg font-black text-white">{detailTx.description}</h2>
-                <p className="mt-1 text-xs text-slate-400">{formatDateID(detailTx.transaction_date, 'dd MMMM yyyy')}</p>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-in fade-in duration-150">
+          <div className="w-full max-w-lg overflow-hidden rounded-2xl macos-window shadow-macos-window">
+            {/* macOS Window Titlebar with Traffic Lights */}
+            <div className="flex items-center justify-between border-b border-white/[0.08] px-5 py-3.5 bg-white/[0.02]">
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-rose-500 inline-block" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 inline-block" />
+                </div>
+                <span className="text-xs font-bold text-white tracking-tight ml-2">Detail Transaksi</span>
               </div>
               <button
                 onClick={() => setDetailTx(null)}
-                className="rounded-xl p-2 text-slate-400 transition-colors hover:bg-slate-800 hover:text-white"
+                className="rounded-lg p-1.5 text-slate-400 hover:bg-white/10 hover:text-white transition-all active:scale-95"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
 
             <div className="space-y-4 p-5">
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <div className="rounded-2xl border border-white/5 bg-slate-950/60 p-4">
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Nominal</p>
-                  <p className={`mt-2 text-xl font-black ${detailTx.type === 'income' ? 'text-emerald-400' : 'text-rose-400'}`}>
+              <div className="border-b border-white/[0.06] pb-3">
+                <h2 className="text-base font-bold text-white tracking-tight">{detailTx.description}</h2>
+                <p className="text-xs text-slate-400 mt-0.5">{formatDateID(detailTx.transaction_date, 'dd MMMM yyyy')}</p>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Nominal</p>
+                  <p className={`mt-1 text-sm font-bold font-mono ${detailTx.type === 'income' ? 'text-emerald-400' : 'text-rose-400'}`}>
                     {detailTx.type === 'income' ? '+' : '-'} {formatIDR(detailTx.amount)}
                   </p>
                 </div>
-                <div className="rounded-2xl border border-white/5 bg-slate-950/60 p-4">
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Kategori</p>
-                  <p className="mt-2 text-sm font-bold text-white">{detailTx.categories?.name || 'Umum'}</p>
+                <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Kategori</p>
+                  <p className="mt-1 text-xs font-semibold text-white truncate">{detailTx.categories?.name || 'Umum'}</p>
                 </div>
-                <div className="rounded-2xl border border-white/5 bg-slate-950/60 p-4">
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Metode</p>
-                  <p className="mt-2 text-sm font-bold text-white">{detailTx.payment_method || 'Cash'}</p>
+                <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Metode</p>
+                  <p className="mt-1 text-xs font-semibold text-white truncate">{detailTx.payment_method || 'Cash'}</p>
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-white/5 bg-slate-950/60 p-4">
-                <div className="mb-3 flex items-center gap-2 text-slate-300">
-                  <FileText className="h-4 w-4 text-emerald-400" />
-                  <p className="text-xs font-bold uppercase tracking-wider">Rincian OCR / Catatan</p>
+              <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3.5 space-y-2">
+                <div className="flex items-center gap-2 text-slate-300">
+                  <FileText className="h-3.5 w-3.5 text-emerald-400" />
+                  <p className="text-[11px] font-bold uppercase tracking-wider">Rincian OCR / Catatan</p>
                 </div>
                 {detailTx.notes ? (
-                  <div className="space-y-1.5">
+                  <div className="space-y-1">
                     {detailTx.notes.split('\n').map((line, index) => (
-                      <p key={`${line}-${index}`} className="rounded-lg bg-slate-900/70 px-3 py-2 text-xs leading-relaxed text-slate-300">
+                      <p key={`${line}-${index}`} className="rounded-lg bg-white/[0.03] px-3 py-1.5 text-xs text-slate-300 font-mono">
                         {line}
                       </p>
                     ))}
                   </div>
                 ) : (
-                  <p className="text-sm text-slate-500">Belum ada catatan detail untuk transaksi ini.</p>
+                  <p className="text-xs text-slate-500">Belum ada catatan detail untuk transaksi ini.</p>
                 )}
               </div>
 
-              <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+              <div className="flex items-center justify-end gap-2.5 pt-2">
                 <button
                   onClick={() => {
                     setSelectedTx(detailTx);
                     setDetailTx(null);
                     setIsModalOpen(true);
                   }}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-800 px-4 py-2.5 text-xs font-bold text-white transition-colors hover:bg-slate-700"
+                  className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-white/10 hover:bg-white/15 px-3.5 py-2 text-xs font-semibold text-white transition-all active:scale-95"
                 >
                   <Edit2 className="h-3.5 w-3.5" />
-                  Edit
+                  <span>Edit</span>
                 </button>
                 <button
                   onClick={() => {
@@ -378,10 +374,10 @@ export default function TransactionsPage() {
                     setDetailTx(null);
                     handleDelete(id);
                   }}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-2.5 text-xs font-bold text-rose-300 transition-colors hover:bg-rose-500/20"
+                  className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-rose-500/20 bg-rose-500/10 hover:bg-rose-500/20 px-3.5 py-2 text-xs font-semibold text-rose-300 transition-all active:scale-95"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
-                  Hapus
+                  <span>Hapus</span>
                 </button>
               </div>
             </div>

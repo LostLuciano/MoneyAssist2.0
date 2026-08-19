@@ -69,7 +69,6 @@ export default function TransactionModal({
     setError(null);
   }, [isOpen, initialData]);
 
-  // Set default category when type changes
   useEffect(() => {
     const valid = filteredCategories.some((c) => c.id === categoryId);
     if (!valid && filteredCategories.length > 0) {
@@ -101,37 +100,35 @@ export default function TransactionModal({
         data: { user },
       } = await supabase.auth.getUser();
 
+      if (!user) {
+        throw new Error('Sesi pengguna tidak valid. Silakan login kembali.');
+      }
+
       const payload = {
-        user_id: user?.id,
+        user_id: user.id,
         type,
         amount: numericAmount,
         description: description.trim(),
-        category_id: categoryId.startsWith('cat-') ? null : categoryId,
+        category_id: categoryId || null,
         transaction_date: date,
         payment_method: paymentMethod,
         notes: notes.trim() || null,
       };
 
       if (initialData?.id) {
-        // Update
-        const { error: updateError } = await supabase
+        const { error: updateErr } = await supabase
           .from('transactions')
           .update(payload)
           .eq('id', initialData.id);
-        if (updateError) throw updateError;
+        if (updateErr) throw updateErr;
       } else {
-        // Insert
-        if (!user) throw new Error('Silakan login terlebih dahulu untuk menyimpan transaksi.');
-
-        const { error: insertError } = await supabase
-          .from('transactions')
-          .insert([payload]);
-        if (insertError) throw insertError;
+        const { error: insertErr } = await supabase.from('transactions').insert([payload]);
+        if (insertErr) throw insertErr;
       }
 
       onSuccess();
     } catch (err: any) {
-      console.error('Error saving transaction:', err);
+      console.error('Save transaction error:', err);
       setError(err.message || 'Gagal menyimpan transaksi.');
     } finally {
       setLoading(false);
@@ -139,114 +136,109 @@ export default function TransactionModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-150">
-      <div className="bg-[#0f172a] border border-white/10 rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl">
-        {/* Header */}
-        <div className="p-5 border-b border-white/5 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
-              <Plus className="w-4 h-4" />
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-in fade-in duration-150 select-none">
+      <div className="w-full max-w-lg overflow-hidden rounded-2xl macos-window shadow-macos-window animate-in zoom-in-95 duration-150">
+        {/* macOS Window Header */}
+        <div className="flex items-center justify-between border-b border-white/[0.08] px-5 py-3.5 bg-white/[0.02]">
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-rose-500 inline-block" />
+              <span className="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block" />
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 inline-block" />
             </div>
-            <div>
-              <h2 className="text-base font-bold text-white">
-                {initialData?.id ? 'Edit Transaksi' : 'Catat Transaksi Baru'}
-              </h2>
-              <p className="text-xs text-slate-400">Pencatatan instan terhubung ke Supabase</p>
-            </div>
+            <span className="text-xs font-bold text-white tracking-tight ml-2">
+              {initialData?.id ? 'Edit Transaksi' : 'Catat Transaksi Baru'}
+            </span>
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+            className="rounded-lg p-1.5 text-slate-400 hover:bg-white/10 hover:text-white transition-all active:scale-95"
           >
-            <X className="w-4 h-4" />
+            <X className="h-4 w-4" />
           </button>
         </div>
 
-        {/* Form Body */}
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
           {error && (
-            <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs flex items-center gap-2">
+            <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs flex items-center gap-2">
               <AlertCircle className="w-4 h-4 shrink-0" />
               <span>{error}</span>
             </div>
           )}
 
-          {/* Type Toggle: Expense / Income */}
-          <div className="grid grid-cols-2 gap-2 p-1 bg-slate-900/80 rounded-xl border border-white/5">
+          {/* Segmented Type Selector */}
+          <div className="macos-segmented w-full justify-center">
             <button
               type="button"
               onClick={() => setType('expense')}
-              className={clsx(
-                'py-2 text-xs font-bold rounded-lg transition-all',
-                type === 'expense'
-                  ? 'bg-rose-500 text-white shadow-md shadow-rose-500/20'
-                  : 'text-slate-400 hover:text-white'
-              )}
+              className={`macos-segmented-item flex-1 py-1.5 text-center ${
+                type === 'expense' ? 'active !text-rose-400' : ''
+              }`}
             >
-              💸 Pengeluaran
+              Pengeluaran
             </button>
             <button
               type="button"
               onClick={() => setType('income')}
-              className={clsx(
-                'py-2 text-xs font-bold rounded-lg transition-all',
-                type === 'income'
-                  ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20'
-                  : 'text-slate-400 hover:text-white'
-              )}
+              className={`macos-segmented-item flex-1 py-1.5 text-center ${
+                type === 'income' ? 'active !text-emerald-400' : ''
+              }`}
             >
-              💰 Pemasukan
+              Pemasukan
             </button>
           </div>
 
-          {/* Nominal Amount */}
+          {/* Amount Input */}
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-              Nominal (Rp) <span className="text-rose-400">*</span>
+            <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">
+              Nominal (Rp)
             </label>
             <div className="relative">
-              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">
+              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">
                 Rp
               </span>
               <input
-                type="number"
+                type="text"
                 value={amount}
-                onChange={(e) => setAmount(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/[^0-9]/g, '');
+                  setAmount(val ? parseInt(val, 10).toLocaleString('id-ID') : '');
+                }}
                 placeholder="0"
                 required
-                className="w-full pl-11 pr-4 py-2.5 bg-slate-900/90 border border-white/10 rounded-xl text-white text-base font-bold placeholder-slate-600 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-colors"
+                className="w-full pl-10 pr-4 py-2.5 bg-white/[0.04] border border-white/10 rounded-xl text-white font-mono font-bold text-base focus:outline-none focus:border-emerald-500/60 transition-all"
               />
             </div>
           </div>
 
           {/* Description */}
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-              Keterangan / Deskripsi <span className="text-rose-400">*</span>
+            <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">
+              Keterangan / Merchant
             </label>
             <input
               type="text"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Contoh: Makan Siang Nasi Padang, Belanja Mingguan..."
+              placeholder="Contoh: Makan Siang, Bensin, Gaji Bulanan"
               required
-              className="w-full px-3.5 py-2.5 bg-slate-900/90 border border-white/10 rounded-xl text-white text-sm placeholder-slate-600 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-colors"
+              className="w-full px-3.5 py-2 bg-white/[0.04] border border-white/10 rounded-xl text-white text-xs placeholder-slate-500 focus:outline-none focus:border-emerald-500/60 transition-all min-h-[38px]"
             />
           </div>
 
-          {/* Category & Payment Method */}
+          {/* Category & Payment Method Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">
                 Kategori
               </label>
               <select
                 value={categoryId}
                 onChange={(e) => setCategoryId(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-slate-900/90 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-colors"
+                className="w-full px-3 py-2 bg-[#0e1424] border border-white/10 rounded-xl text-white text-xs focus:outline-none focus:border-emerald-500/60 transition-all min-h-[38px]"
               >
                 {filteredCategories.map((c) => (
-                  <option key={c.id} value={c.id} className="bg-slate-900 text-white">
+                  <option key={c.id} value={c.id} className="bg-[#0e1424]">
                     {c.name}
                   </option>
                 ))}
@@ -254,49 +246,63 @@ export default function TransactionModal({
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">
                 Metode Pembayaran
               </label>
               <select
                 value={paymentMethod}
                 onChange={(e) => setPaymentMethod(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-slate-900/90 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-colors"
+                className="w-full px-3 py-2 bg-[#0e1424] border border-white/10 rounded-xl text-white text-xs focus:outline-none focus:border-emerald-500/60 transition-all min-h-[38px]"
               >
-                <option value="Cash">Cash (Tunai)</option>
-                <option value="Transfer Bank">Transfer Bank / VA</option>
-                <option value="QRIS">QRIS / E-Wallet</option>
-                <option value="Kartu Debit">Kartu Debit</option>
-                <option value="Kartu Kredit">Kartu Kredit</option>
+                <option value="Cash" className="bg-[#0e1424]">Tunai / Cash</option>
+                <option value="QRIS" className="bg-[#0e1424]">QRIS / E-Wallet</option>
+                <option value="Transfer Bank" className="bg-[#0e1424]">Transfer Bank</option>
+                <option value="Debit Card" className="bg-[#0e1424]">Kartu Debit</option>
+                <option value="Credit Card" className="bg-[#0e1424]">Kartu Kredit</option>
               </select>
             </div>
           </div>
 
-          {/* Transaction Date */}
+          {/* Date */}
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+            <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">
               Tanggal Transaksi
             </label>
             <input
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="w-full px-3.5 py-2 bg-slate-900/90 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-colors"
+              className="w-full px-3.5 py-2 bg-[#0e1424] border border-white/10 rounded-xl text-white text-xs focus:outline-none focus:border-emerald-500/60 transition-all min-h-[38px]"
             />
           </div>
 
-          {/* Modal Actions */}
-          <div className="pt-3 border-t border-white/5 flex items-center justify-end gap-2.5">
+          {/* Notes */}
+          <div>
+            <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">
+              Catatan Tambahan (Opsional)
+            </label>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={2}
+              placeholder="Tambahan detail transaksi..."
+              className="w-full px-3.5 py-2 bg-white/[0.04] border border-white/10 rounded-xl text-white text-xs placeholder-slate-500 focus:outline-none focus:border-emerald-500/60 transition-all resize-none"
+            />
+          </div>
+
+          {/* Actions */}
+          <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-white/[0.06]">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-xs font-semibold text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition-colors"
+              className="px-4 py-2 rounded-xl bg-white/[0.06] hover:bg-white/10 text-slate-300 text-xs font-semibold transition-all active:scale-95 min-h-[36px]"
             >
               Batal
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="flex items-center gap-2 px-5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 font-bold text-xs shadow-lg shadow-emerald-500/20 transition-all hover:scale-[1.02]"
+              className="flex items-center gap-1.5 px-5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold shadow-md shadow-emerald-500/20 active:scale-95 transition-all min-h-[36px]"
             >
               {loading ? (
                 <>
@@ -304,10 +310,7 @@ export default function TransactionModal({
                   <span>Menyimpan...</span>
                 </>
               ) : (
-                <>
-                  <Check className="w-3.5 h-3.5" />
-                  <span>Simpan Transaksi</span>
-                </>
+                <span>{initialData?.id ? 'Perbarui' : 'Simpan Transaksi'}</span>
               )}
             </button>
           </div>

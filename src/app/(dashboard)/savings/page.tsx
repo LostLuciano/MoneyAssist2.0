@@ -9,6 +9,7 @@ import {
   TrendingUp,
   CheckCircle2,
   Trash2,
+  X,
 } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import { createClient } from '@/lib/supabase/client';
@@ -132,130 +133,109 @@ export default function SavingsPage() {
     <div className="space-y-6">
       <Header
         title="Target Tabungan (Savings Goals)"
-        subtitle="Rencanakan dan pantau perkembangan tabungan impian serta dana darurat"
+        subtitle="Rencanakan target tabungan impian, dana darurat, dan investasi"
       />
 
       <div className="px-4 sm:px-6 space-y-6 max-w-6xl mx-auto">
-        {/* Total Summary */}
-        <div className="glass-panel p-6 rounded-3xl border border-white/5 flex flex-col md:flex-row items-center justify-between gap-6">
+        {/* macOS Summary Banner */}
+        <div className="p-5 rounded-2xl macos-card flex flex-col md:flex-row items-start md:items-center justify-between gap-4 select-none">
           <div>
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
               Total Tabungan Terkumpul
             </span>
-            <div className="text-3xl font-black text-white mt-1">
+            <div className="text-2xl sm:text-3xl font-bold text-white tracking-tight font-mono mt-1">
               {formatIDR(totalSaved)}{' '}
-              <span className="text-sm font-normal text-slate-400">
+              <span className="text-xs sm:text-sm font-normal text-slate-400 font-sans">
                 / {formatIDR(totalTarget)}
               </span>
             </div>
             <p className="text-xs text-slate-400 mt-1">
               {goals.length > 0
-                ? `Total akumulasi dari ${goals.length} target aktif.`
+                ? `Akumulasi progres dari ${goals.length} target tabungan aktif.`
                 : 'Belum ada target tabungan yang dibuat.'}
             </p>
           </div>
 
           <button
             onClick={() => setShowAddModal(true)}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs shadow-lg shadow-emerald-500/20 transition-all hover:scale-[1.02]"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs shadow-md shadow-emerald-500/20 active:scale-95 transition-all min-h-[38px]"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-4 h-4 stroke-[2.5]" />
             <span>Buat Target Baru</span>
           </button>
         </div>
 
         {/* Goals Grid */}
         {goals.length === 0 ? (
-          <div className="p-12 text-center text-slate-500 text-sm glass-panel rounded-3xl border border-white/5 space-y-3">
-            <Target className="w-10 h-10 mx-auto text-slate-600" />
-            <p className="font-semibold text-white">Belum ada target tabungan aktif</p>
-            <p className="text-xs text-slate-400 max-w-sm mx-auto">
-              Tentukan target impian Anda seperti Dana Darurat 3 Bulan, Liburan, atau Pembelian Gadget untuk memotivasi tabungan Anda.
+          <div className="p-12 text-center text-slate-500 text-xs rounded-2xl macos-card space-y-2">
+            <Target className="w-9 h-9 mx-auto text-slate-600 mb-1" />
+            <p className="font-bold text-white text-sm">Belum ada target tabungan aktif</p>
+            <p className="text-slate-400 max-w-sm mx-auto text-[11px]">
+              Tentukan target impian Anda seperti Dana Darurat, Liburan, atau Gadget Impian untuk memotivasi tabungan Anda.
             </p>
             <button
               onClick={() => setShowAddModal(true)}
-              className="mt-2 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-500 text-slate-950 font-bold text-xs"
+              className="mt-3 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-500 text-slate-950 font-bold text-xs active:scale-95 transition-all shadow-md shadow-emerald-500/20"
             >
-              <Plus className="w-4 h-4" />
-              <span>Buat Target Tabungan Pertama</span>
+              <Plus className="w-3.5 h-3.5" />
+              <span>Buat Target Tabungan</span>
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {goals.map((g) => {
-              const percentage = Math.min(
-                100,
-                Math.round((Number(g.current_amount) / Number(g.target_amount)) * 100)
-              );
-              const isDone = Number(g.current_amount) >= Number(g.target_amount);
+              const percentage = Math.min(100, Math.round((Number(g.current_amount) / Number(g.target_amount)) * 100));
+              const isCompleted = percentage >= 100;
 
               return (
                 <div
                   key={g.id}
-                  className="glass-panel p-5 rounded-3xl border border-white/5 flex flex-col justify-between space-y-4 relative group"
+                  className="p-5 rounded-2xl macos-card flex flex-col justify-between space-y-4 relative group select-none"
                 >
                   <div className="space-y-3">
                     <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-2.5">
-                        <div
-                          className="w-10 h-10 rounded-2xl flex items-center justify-center border"
-                          style={{
-                            backgroundColor: `${g.color || '#10b981'}15`,
-                            borderColor: `${g.color || '#10b981'}30`,
-                            color: g.color || '#10b981',
-                          }}
-                        >
-                          <Target className="w-5 h-5" />
-                        </div>
-                        <div>
-                          <h4 className="text-sm font-bold text-white leading-tight">{g.name}</h4>
-                          {g.target_date && (
-                            <div className="flex items-center gap-1 text-[11px] text-slate-400 mt-0.5">
-                              <Calendar className="w-3 h-3 text-slate-500" />
-                              <span>Target: {formatDateID(g.target_date, 'dd MMM yyyy')}</span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-1.5">
-                        {isDone && (
-                          <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold">
-                            Tercapai 🎉
-                          </span>
-                        )}
-                        <button
-                          onClick={() => handleDeleteGoal(g.id)}
-                          className="opacity-0 group-hover:opacity-100 p-1 text-slate-500 hover:text-rose-400 transition-all"
-                          title="Hapus Target"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Progress Bar */}
-                    <div className="space-y-1.5 pt-2">
-                      <div className="flex justify-between text-xs font-semibold">
-                        <span className="text-slate-400">Progress</span>
-                        <span className="text-emerald-400 font-bold">{percentage}%</span>
-                      </div>
-                      <div className="w-full bg-slate-800 rounded-full h-2.5 overflow-hidden">
-                        <div
-                          className="bg-gradient-to-r from-emerald-500 to-teal-400 h-2.5 rounded-full transition-all"
-                          style={{ width: `${percentage}%` }}
-                        ></div>
-                      </div>
-                    </div>
-
-                    <div className="flex justify-between text-xs pt-1">
                       <div>
-                        <span className="text-[10px] text-slate-500 uppercase block">Terkumpul</span>
-                        <span className="font-bold text-white">{formatIDR(g.current_amount)}</span>
+                        <span
+                          className={`text-[9px] font-bold font-mono px-2 py-0.5 rounded-full border inline-block ${
+                            isCompleted
+                              ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                              : 'bg-white/5 text-slate-400 border-white/10'
+                          }`}
+                        >
+                          {isCompleted ? '✓ Tercapai' : 'Sedang Berjalan'}
+                        </span>
+                        <h4 className="text-sm font-bold text-white mt-1.5 tracking-tight truncate max-w-[180px]">
+                          {g.name}
+                        </h4>
                       </div>
-                      <div className="text-right">
-                        <span className="text-[10px] text-slate-500 uppercase block">Target</span>
-                        <span className="font-bold text-slate-300">{formatIDR(g.target_amount)}</span>
+
+                      <button
+                        onClick={() => handleDeleteGoal(g.id)}
+                        className="opacity-0 group-hover:opacity-100 p-1 text-slate-500 hover:text-rose-400 transition-all rounded"
+                        title="Hapus Target"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-slate-400 font-mono text-[11px]">
+                          {formatIDR(g.current_amount)}
+                        </span>
+                        <span className="font-bold text-emerald-400 font-mono text-xs">
+                          {percentage}%
+                        </span>
+                      </div>
+                      <div className="w-full bg-white/[0.08] rounded-full h-2 overflow-hidden">
+                        <div
+                          className="h-2 rounded-full bg-emerald-500 transition-all"
+                          style={{ width: `${percentage}%` }}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between text-[10px] text-slate-500 font-mono">
+                        <span>Target: {formatIDR(g.target_amount)}</span>
+                        {g.target_date && <span>Target: {formatDateID(g.target_date, 'dd MMM yyyy')}</span>}
                       </div>
                     </div>
                   </div>
@@ -265,10 +245,10 @@ export default function SavingsPage() {
                       setActiveGoal(g);
                       setShowDepositModal(true);
                     }}
-                    className="w-full py-2 rounded-xl bg-slate-800 hover:bg-slate-750 border border-white/5 text-xs font-semibold text-slate-200 hover:text-white flex items-center justify-center gap-1.5 transition-all"
+                    className="w-full py-2 rounded-xl bg-white/[0.06] hover:bg-white/[0.1] border border-white/10 text-slate-200 hover:text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition-all active:scale-95"
                   >
                     <Plus className="w-3.5 h-3.5" />
-                    <span>Tambah Tabungan</span>
+                    <span>Nabung ke Target Ini</span>
                   </button>
                 </div>
               );
@@ -277,38 +257,81 @@ export default function SavingsPage() {
         )}
       </div>
 
-      {/* Deposit Modal */}
-      {showDepositModal && activeGoal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-          <div className="bg-[#0f172a] border border-white/10 rounded-2xl p-6 w-full max-w-md shadow-2xl space-y-4">
-            <h3 className="text-base font-bold text-white">Setor ke: {activeGoal.name}</h3>
-            <form onSubmit={handleDeposit} className="space-y-4">
+      {/* Add Goal Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-in fade-in select-none">
+          <div className="macos-window rounded-2xl w-full max-w-md shadow-macos-window overflow-hidden">
+            <div className="flex items-center justify-between border-b border-white/[0.08] px-5 py-3.5 bg-white/[0.02]">
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-rose-500 inline-block" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 inline-block" />
+                </div>
+                <span className="text-xs font-bold text-white tracking-tight ml-2">Buat Target Tabungan Baru</span>
+              </div>
+              <button
+                onClick={() => setShowAddModal(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-white transition-all active:scale-95"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleAddGoal} className="p-5 space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  Nominal Tambahan (Rp)
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">
+                  Nama Rencana Tabungan
                 </label>
                 <input
-                  type="number"
-                  value={depositAmount}
-                  onChange={(e) => setDepositAmount(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-900 border border-white/10 rounded-xl text-white text-base font-bold focus:outline-none focus:border-emerald-500"
+                  type="text"
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  placeholder="Contoh: Dana Darurat 3 Bulan, Liburan Jepang"
+                  className="w-full px-3.5 py-2.5 bg-white/[0.04] border border-white/10 rounded-xl text-white text-xs focus:outline-none focus:border-emerald-500/60 min-h-[38px]"
                   required
                 />
               </div>
 
-              <div className="flex justify-end gap-2 pt-2">
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">
+                  Target Nominal (Rp)
+                </label>
+                <input
+                  type="number"
+                  value={newTarget}
+                  onChange={(e) => setNewTarget(e.target.value)}
+                  placeholder="Contoh: 10000000"
+                  className="w-full px-3.5 py-2.5 bg-white/[0.04] border border-white/10 rounded-xl text-white font-mono font-bold text-sm focus:outline-none focus:border-emerald-500/60 min-h-[38px]"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">
+                  Target Waktu (Opsional)
+                </label>
+                <input
+                  type="date"
+                  value={newDate}
+                  onChange={(e) => setNewDate(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-[#0e1424] border border-white/10 rounded-xl text-white text-xs focus:outline-none focus:border-emerald-500/60 min-h-[38px]"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-white/[0.06]">
                 <button
                   type="button"
-                  onClick={() => setShowDepositModal(false)}
-                  className="px-4 py-2 text-xs font-semibold text-slate-400 hover:text-white"
+                  onClick={() => setShowAddModal(false)}
+                  className="px-4 py-2 text-xs font-semibold text-slate-300 hover:text-white rounded-xl bg-white/[0.05] hover:bg-white/[0.08] transition-all min-h-[36px]"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl bg-emerald-500 text-slate-950 font-bold text-xs"
+                  className="px-5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs shadow-md shadow-emerald-500/20 active:scale-95 transition-all min-h-[36px]"
                 >
-                  Simpan Tabungan
+                  Simpan Target
                 </button>
               </div>
             </form>
@@ -316,65 +339,54 @@ export default function SavingsPage() {
         </div>
       )}
 
-      {/* Add Goal Modal */}
-      {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-          <div className="bg-[#0f172a] border border-white/10 rounded-2xl p-6 w-full max-w-md shadow-2xl space-y-4">
-            <h3 className="text-base font-bold text-white">Buat Target Tabungan Baru</h3>
-            <form onSubmit={handleAddGoal} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  Nama Target / Impian
-                </label>
-                <input
-                  type="text"
-                  value={newName}
-                  onChange={(e) => setNewName(e.target.value)}
-                  placeholder="Contoh: Dana Darurat 3 Bulan, Beli Laptop..."
-                  className="w-full px-3.5 py-2.5 bg-slate-900 border border-white/10 rounded-xl text-white text-xs focus:outline-none focus:border-emerald-500"
-                  required
-                />
+      {/* Deposit Modal */}
+      {showDepositModal && activeGoal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-in fade-in select-none">
+          <div className="macos-window rounded-2xl w-full max-w-sm shadow-macos-window overflow-hidden">
+            <div className="flex items-center justify-between border-b border-white/[0.08] px-5 py-3.5 bg-white/[0.02]">
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-rose-500 inline-block" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 inline-block" />
+                </div>
+                <span className="text-xs font-bold text-white tracking-tight ml-2">Nabung ke "{activeGoal.name}"</span>
               </div>
+              <button
+                onClick={() => setShowDepositModal(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-white transition-all active:scale-95"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
 
+            <form onSubmit={handleDeposit} className="p-5 space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  Target Nominal (Rp)
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">
+                  Nominal yang Ditabung (Rp)
                 </label>
                 <input
                   type="number"
-                  value={newTarget}
-                  onChange={(e) => setNewTarget(e.target.value)}
-                  placeholder="10000000"
-                  className="w-full px-3.5 py-2.5 bg-slate-900 border border-white/10 rounded-xl text-white text-xs focus:outline-none focus:border-emerald-500"
+                  value={depositAmount}
+                  onChange={(e) => setDepositAmount(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-white/[0.04] border border-white/10 rounded-xl text-white font-mono font-bold text-base focus:outline-none focus:border-emerald-500/60 min-h-[38px]"
                   required
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  Target Tanggal Selesai
-                </label>
-                <input
-                  type="date"
-                  value={newDate}
-                  onChange={(e) => setNewDate(e.target.value)}
-                  className="w-full px-3.5 py-2 bg-slate-900 border border-white/10 rounded-xl text-white text-xs focus:outline-none focus:border-emerald-500"
-                />
-              </div>
-
-              <div className="flex justify-end gap-2 pt-2">
+              <div className="flex justify-end gap-2 pt-2 border-t border-white/[0.06]">
                 <button
                   type="button"
-                  onClick={() => setShowAddModal(false)}
-                  className="px-4 py-2 text-xs font-semibold text-slate-400 hover:text-white"
+                  onClick={() => setShowDepositModal(false)}
+                  className="px-4 py-2 text-xs font-semibold text-slate-300 hover:text-white rounded-xl bg-white/[0.05] hover:bg-white/[0.08] transition-all min-h-[36px]"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl bg-emerald-500 text-slate-950 font-bold text-xs"
+                  className="px-5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs shadow-md shadow-emerald-500/20 active:scale-95 transition-all min-h-[36px]"
                 >
-                  Buat Target
+                  Tambahkan Tabungan
                 </button>
               </div>
             </form>

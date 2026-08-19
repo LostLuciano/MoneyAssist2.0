@@ -40,7 +40,6 @@ export default function IntegrationsPage() {
       if (user) {
         let { data } = await supabase.from('profiles').select('*').eq('id', user.id).single();
 
-        // Generate default pairing code if null
         if (data && !data.pairing_code) {
           const randomCode = 'MA' + Math.random().toString(36).substring(2, 6).toUpperCase();
           await supabase.from('profiles').update({ pairing_code: randomCode }).eq('id', user.id);
@@ -57,15 +56,12 @@ export default function IntegrationsPage() {
       }
     } catch (err) {
       console.error('Error fetching profile:', err);
-    } finally {
-      // Profile fetching is intentionally silent; the cards render from the latest profile state.
     }
   };
 
   useEffect(() => {
     fetchProfile();
 
-    // 1. Live Realtime Listener for instant verification update
     const channel = supabase
       .channel('profile-pairing-sync')
       .on(
@@ -85,7 +81,6 @@ export default function IntegrationsPage() {
       )
       .subscribe();
 
-    // 2. Polling Fallback every 3 seconds if not yet connected
     const interval = setInterval(() => {
       if (!profile?.telegram_id) {
         fetchProfile();
@@ -179,7 +174,7 @@ export default function IntegrationsPage() {
     <div className="space-y-6">
       <Header
         title="Pintasan iPhone & Bot Telegram"
-        subtitle="Otomatisasi pencatatan transaksi via Ketuk Belakang iPhone dan Bot Telegram AI"
+        subtitle="Integrasi otomatisasi pencatatan transaksi via Ketuk Belakang iPhone dan Bot Telegram"
       />
 
       <div className="px-4 sm:px-6 space-y-6 max-w-5xl mx-auto">
@@ -187,8 +182,8 @@ export default function IntegrationsPage() {
           <div
             className={`p-4 rounded-2xl text-xs flex items-center gap-2.5 animate-in fade-in duration-150 ${
               statusMsg.type === 'success'
-                ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400'
-                : 'bg-rose-500/10 border border-rose-500/20 text-rose-400'
+                ? 'bg-emerald-500/15 border border-emerald-500/25 text-emerald-300'
+                : 'bg-rose-500/15 border border-rose-500/25 text-rose-300'
             }`}
           >
             {statusMsg.type === 'success' ? <CheckCircle2 className="w-4 h-4 shrink-0" /> : <ShieldCheck className="w-4 h-4 shrink-0" />}
@@ -197,35 +192,35 @@ export default function IntegrationsPage() {
         )}
 
         {/* 1. Telegram Bot Integration Card */}
-        <div className="glass-panel p-6 md:p-8 rounded-3xl border border-white/5 space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="p-6 md:p-7 rounded-2xl macos-card space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/[0.06] pb-4">
             <div className="flex items-center gap-3.5">
-              <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 flex items-center justify-center shrink-0">
-                <Send className="w-6 h-6" />
+              <div className="w-11 h-11 rounded-xl bg-cyan-500/15 border border-cyan-500/25 text-cyan-400 flex items-center justify-center shrink-0">
+                <Send className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-white flex items-center gap-2">
+                <h3 className="text-sm sm:text-base font-bold text-white flex items-center gap-2 tracking-tight">
                   Bot Telegram MoneyAssist AI
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-300 border border-cyan-500/20 font-mono">
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/15 text-cyan-300 border border-cyan-500/25 font-mono">
                     @{botUsername}
                   </span>
                 </h3>
-                <p className="text-xs text-slate-400">
-                  Catat transaksi via chat teks atau kirim foto struk/screenshot mutasi langsung di Telegram
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Catat transaksi via chat teks atau kirim foto struk langsung di Telegram
                 </p>
               </div>
             </div>
 
             {isConnected ? (
               <div className="flex flex-wrap items-center gap-2">
-                <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-bold shrink-0">
-                  <CheckCircle2 className="w-4 h-4" />
+                <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/25 text-xs font-bold shrink-0">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
                   Terhubung (@{profile.telegram_username || profile.telegram_id})
                 </span>
                 <button
                   onClick={handleSendTestPing}
                   disabled={testingPing}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/20 text-xs font-semibold transition-colors"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/20 text-xs font-semibold transition-all active:scale-95 min-h-[34px]"
                   title="Tes Kirim Pesan ke Bot"
                 >
                   {testingPing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <BellRing className="w-3.5 h-3.5" />}
@@ -234,7 +229,7 @@ export default function IntegrationsPage() {
                 <button
                   onClick={handleUnlinkTelegram}
                   disabled={unlinking}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 border border-white/5 text-xs font-semibold transition-colors"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/[0.04] hover:bg-rose-500/15 text-slate-400 hover:text-rose-400 border border-white/10 text-xs font-semibold transition-all active:scale-95 min-h-[34px]"
                   title="Putuskan Sambungan"
                 >
                   <Unlink className="w-3.5 h-3.5" />
@@ -243,13 +238,13 @@ export default function IntegrationsPage() {
               </div>
             ) : (
               <div className="flex items-center gap-2">
-                <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 text-xs font-bold shrink-0 animate-pulse">
+                <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/25 text-xs font-bold shrink-0 animate-pulse">
                   <Radio className="w-3.5 h-3.5" />
                   Menunggu Pairing...
                 </span>
                 <button
                   onClick={fetchProfile}
-                  className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300"
+                  className="p-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 active:scale-95"
                   title="Cek Status Sekarang"
                 >
                   <RefreshCw className="w-3.5 h-3.5" />
@@ -260,20 +255,20 @@ export default function IntegrationsPage() {
 
           {/* Connected Verified Banner OR Pairing Code Customizer */}
           {isConnected ? (
-            <div className="p-5 rounded-2xl bg-emerald-950/30 border border-emerald-500/20 space-y-3">
-              <div className="flex items-center gap-2.5 text-emerald-400">
-                <CheckCircle2 className="w-5 h-5 shrink-0" />
-                <h4 className="text-sm font-bold">Akun Terhubung & Sinkronisasi Real-Time Aktif</h4>
+            <div className="p-4 rounded-xl bg-emerald-950/20 border border-emerald-500/20 space-y-2.5">
+              <div className="flex items-center gap-2 text-emerald-400">
+                <CheckCircle2 className="w-4 h-4 shrink-0" />
+                <h4 className="text-xs font-bold">Sinkronisasi Real-Time Aktif</h4>
               </div>
               <p className="text-xs text-slate-300 leading-relaxed">
-                Bot Telegram <strong>@{botUsername}</strong> telah terhubung dengan akun <strong>{profile?.full_name || profile?.email}</strong>. Setiap pesan teks atau foto struk yang Anda kirim ke bot akan langsung otomatis tercatat ke riwayat finansial Anda.
+                Bot Telegram <strong>@{botUsername}</strong> telah terhubung dengan akun Anda. Setiap pesan teks atau foto struk yang Anda kirim akan langsung tercatat otomatis.
               </p>
-              <div className="pt-2 flex flex-wrap gap-2 text-xs">
+              <div className="pt-1">
                 <a
                   href={`https://t.me/${botUsername}`}
                   target="_blank"
                   rel="noreferrer"
-                  className="px-3 py-2 rounded-xl bg-emerald-500 text-slate-950 font-bold flex items-center gap-1.5 hover:opacity-90 shadow-md shadow-emerald-500/20"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs shadow-md shadow-emerald-500/20 active:scale-95 transition-all min-h-[36px]"
                 >
                   <Send className="w-3.5 h-3.5" />
                   <span>Buka Chat Telegram</span>
@@ -282,55 +277,45 @@ export default function IntegrationsPage() {
               </div>
             </div>
           ) : (
-            <div className="rounded-2xl border border-white/10 bg-slate-900/90 p-5">
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                <div className="space-y-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="block text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                      Kode Pairing Akun
-                    </span>
-                    <span className="rounded-md border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-300">
-                      Otomatis oleh sistem
-                    </span>
-                    <span className="rounded-md border border-cyan-500/20 bg-cyan-500/10 px-2 py-0.5 text-[10px] font-bold text-cyan-300">
-                      Tidak bisa diubah manual
-                    </span>
-                  </div>
-                  <p className="max-w-xl text-xs leading-relaxed text-slate-300">
-                    Kode ini dibuat otomatis supaya akun web, bot Telegram, dan endpoint Pintasan tetap sinkron. Salin kode atau buka bot langsung untuk pairing.
+            <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-4">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <div className="space-y-1">
+                  <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    Kode Pairing Akun
+                  </span>
+                  <p className="text-xs text-slate-300 max-w-lg">
+                    Kode ini dibuat otomatis untuk menghubungkan web dan bot Telegram. Salin kode atau buka bot langsung.
                   </p>
                 </div>
 
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                  <div className="rounded-2xl border border-emerald-500/30 bg-slate-950 px-5 py-3 shadow-inner">
-                    <span className="block font-mono text-2xl font-black tracking-[0.28em] text-emerald-400">
+                <div className="flex items-center gap-2">
+                  <div className="rounded-xl border border-emerald-500/30 bg-black/40 px-4 py-2">
+                    <span className="font-mono text-xl font-bold tracking-widest text-emerald-400">
                       {activePairingCode}
                     </span>
                   </div>
                   <button
                     onClick={() => handleCopy(activePairingCode, 'plain_code')}
-                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-slate-800 px-4 py-3 text-xs font-bold text-slate-200 transition-colors hover:bg-slate-700 hover:text-white"
-                    title="Salin kode pairing"
+                    className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.06] hover:bg-white/[0.1] px-3.5 py-2 text-xs font-semibold text-white transition-all active:scale-95 min-h-[38px]"
                   >
-                    {copiedKey === 'plain_code' ? <Check className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />}
-                    <span>{copiedKey === 'plain_code' ? 'Tersalin' : 'Salin Kode'}</span>
+                    {copiedKey === 'plain_code' ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+                    <span>{copiedKey === 'plain_code' ? 'Tersalin' : 'Salin'}</span>
                   </button>
                 </div>
               </div>
             </div>
           )}
 
-          {/* 2 Ways to Connect: 1-Click Link & Direct Text */}
+          {/* 2 Ways to Connect */}
           {!isConnected && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-              {/* Way 1: 1-Click Link */}
-              <div className="p-5 rounded-2xl bg-gradient-to-br from-cyan-950/40 via-slate-900 to-slate-900 border border-cyan-500/20 space-y-4 flex flex-col justify-between">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="p-4 rounded-xl bg-white/[0.02] border border-white/[0.06] space-y-3 flex flex-col justify-between">
                 <div>
-                  <span className="text-[11px] font-bold text-cyan-400 uppercase tracking-wider block">
+                  <span className="text-[10px] font-bold text-cyan-400 uppercase tracking-wider block">
                     Cara 1: Buka Bot Langsung (1-Klik)
                   </span>
                   <p className="text-xs text-slate-300 mt-1">
-                    Klik tombol di bawah untuk membuka Telegram dan langsung menghubungkan akun secara otomatis.
+                    Buka Telegram dan hubungkan akun secara otomatis via link ini.
                   </p>
                 </div>
 
@@ -338,42 +323,36 @@ export default function IntegrationsPage() {
                   href={telegramDirectUrl}
                   target="_blank"
                   rel="noreferrer"
-                  className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-cyan-500 to-teal-400 hover:opacity-90 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-cyan-500/20 transition-all hover:scale-[1.02]"
+                  className="w-full py-2.5 px-4 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 shadow-md shadow-cyan-500/20 active:scale-95 transition-all min-h-[38px]"
                 >
-                  <Send className="w-4 h-4" />
+                  <Send className="w-3.5 h-3.5" />
                   <span>Buka Bot @{botUsername}</span>
-                  <ArrowUpRight className="w-4 h-4" />
+                  <ArrowUpRight className="w-3.5 h-3.5" />
                 </a>
               </div>
 
-              {/* Way 2: Direct Text Message */}
-              <div className="p-5 rounded-2xl bg-slate-900/80 border border-white/5 space-y-4 flex flex-col justify-between">
+              <div className="p-4 rounded-xl bg-white/[0.02] border border-white/[0.06] space-y-3 flex flex-col justify-between">
                 <div>
-                  <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-wider block">
-                    Cara 2: Ketik Langsung Kodenya di Chat
+                  <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block">
+                    Cara 2: Ketik Kode di Chat Bot
                   </span>
                   <p className="text-xs text-slate-300 mt-1">
-                    Buka bot di Telegram, lalu <strong>cukup ketik kodenya saja</strong> (tidak perlu pakai tanda <code>/</code>):
+                    Buka bot di Telegram, lalu ketik kodenya saja secara langsung.
                   </p>
                 </div>
 
-                <div className="p-2.5 rounded-xl bg-slate-950 border border-white/10 flex items-center justify-between font-mono text-sm text-emerald-400">
+                <div className="p-2 rounded-xl bg-black/40 border border-white/10 flex items-center justify-between font-mono text-xs text-emerald-400">
                   <span>{activePairingCode}</span>
                   <button
                     onClick={() => handleCopy(activePairingCode, 'code_only')}
-                    className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-750 text-slate-200 text-xs font-sans font-semibold transition-colors"
+                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/[0.08] hover:bg-white/[0.12] text-slate-200 text-xs font-sans font-semibold transition-all active:scale-95"
                   >
                     {copiedKey === 'code_only' ? (
-                      <>
-                        <Check className="w-3.5 h-3.5 text-emerald-400" />
-                        <span className="text-emerald-400">Tersalin!</span>
-                      </>
+                      <Check className="w-3 h-3 text-emerald-400" />
                     ) : (
-                      <>
-                        <Copy className="w-3.5 h-3.5" />
-                        <span>Salin Kode</span>
-                      </>
+                      <Copy className="w-3 h-3" />
                     )}
+                    <span>{copiedKey === 'code_only' ? 'Tersalin' : 'Salin'}</span>
                   </button>
                 </div>
               </div>
@@ -382,69 +361,69 @@ export default function IntegrationsPage() {
         </div>
 
         {/* 2. iPhone Siri & Back Tap Shortcut Card */}
-        <div className="glass-panel p-6 md:p-8 rounded-3xl border border-white/5 space-y-6">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="p-6 md:p-7 rounded-2xl macos-card space-y-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-white/[0.06] pb-4">
             <div className="flex items-center gap-3.5">
-              <div className="w-12 h-12 rounded-2xl bg-purple-500/10 border border-purple-500/20 text-purple-400 flex items-center justify-center shrink-0">
-                <Smartphone className="w-6 h-6" />
+              <div className="w-11 h-11 rounded-xl bg-purple-500/15 border border-purple-500/25 text-purple-400 flex items-center justify-center shrink-0">
+                <Smartphone className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-white flex items-center gap-2">
+                <h3 className="text-sm sm:text-base font-bold text-white flex items-center gap-2 tracking-tight">
                   Pintasan iPhone (Ketuk Belakang / Back Tap)
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-300 border border-purple-500/20 font-mono">
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-300 border border-purple-500/25 font-mono">
                     iOS Shortcut
                   </span>
                 </h3>
-                <p className="text-xs text-slate-400">
-                  Ambil tangkapan layar m-Banking / e-wallet dan catat transaksi otomatis dengan 2x ketuk punggung iPhone
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Catat transaksi instan dari tangkapan layar m-Banking via 2x ketuk punggung iPhone
                 </p>
               </div>
             </div>
-            <span className={`inline-flex w-fit items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] font-bold ${
+            <span className={`inline-flex w-fit items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-bold ${
               isConnected
-                ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-300'
-                : 'border-amber-500/20 bg-amber-500/10 text-amber-300'
+                ? 'border-emerald-500/25 bg-emerald-500/15 text-emerald-300'
+                : 'border-amber-500/25 bg-amber-500/15 text-amber-300'
             }`}>
-              {isConnected ? <CheckCircle2 className="h-3.5 w-3.5" /> : <ShieldCheck className="h-3.5 w-3.5" />}
-              <span>{isConnected ? 'Siap Dipakai' : 'Terkunci sampai Telegram terhubung'}</span>
+              {isConnected ? <CheckCircle2 className="h-3.5 h-3.5" /> : <ShieldCheck className="h-3.5 w-3.5" />}
+              <span>{isConnected ? 'Siap Digunakan' : 'Perlu Hubungkan Telegram'}</span>
             </span>
           </div>
 
           {/* Endpoints */}
           <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
-            <div className="rounded-2xl border border-white/5 bg-slate-900/80 p-4 space-y-2">
+            <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 space-y-2">
               <div className="flex items-center justify-between gap-3 text-xs">
                 <div>
                   <span className="font-bold text-white">Endpoint Upload Pintasan</span>
-                  <p className="mt-0.5 text-[11px] text-slate-500">POST, token otomatis di URL</p>
+                  <p className="text-[10px] text-slate-400">POST Request Form</p>
                 </div>
                 <button
                   disabled={!isConnected || !shortcutToken}
                   onClick={() => handleCopy(uploadEndpoint, 'upload_ep')}
-                  className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-emerald-500/10 px-2.5 py-1.5 text-xs font-bold text-emerald-300 transition-colors hover:bg-emerald-500/20 disabled:bg-slate-800/60 disabled:text-slate-600"
+                  className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-emerald-500/15 px-2.5 py-1 text-xs font-bold text-emerald-300 transition-all hover:bg-emerald-500/25 disabled:opacity-40"
                 >
                   {copiedKey === 'upload_ep' ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
                   <span>{copiedKey === 'upload_ep' ? 'Tersalin' : 'Salin'}</span>
                 </button>
               </div>
-              <div className={`rounded-xl border p-3 font-mono text-[11px] leading-relaxed ${
-                isConnected ? 'border-emerald-500/10 bg-slate-950 text-emerald-300' : 'border-white/5 bg-slate-950/70 text-slate-500'
+              <div className={`rounded-xl border p-2.5 font-mono text-[10px] truncate ${
+                isConnected ? 'border-emerald-500/20 bg-black/40 text-emerald-300' : 'border-white/5 bg-black/30 text-slate-500'
               }`}>
-                {isConnected ? uploadEndpoint : 'Hubungkan Telegram dulu agar URL Pintasan aktif.'}
+                {isConnected ? uploadEndpoint : 'Hubungkan Telegram terlebih dahulu.'}
               </div>
             </div>
 
-            <div className="rounded-2xl border border-white/5 bg-slate-900/80 p-4 space-y-2">
+            <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 space-y-2">
               <div className="flex items-center justify-between gap-3 text-xs">
                 <div>
                   <span className="font-bold text-white">URL Tes Koneksi</span>
-                  <p className="mt-0.5 text-[11px] text-slate-500">Buka untuk kirim ping ke Telegram</p>
+                  <p className="text-[10px] text-slate-400">GET Request Ping</p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
                   <button
                     disabled={!isConnected || !shortcutToken}
                     onClick={() => handleCopy(pingEndpoint, 'ping_ep')}
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-cyan-500/10 px-2.5 py-1.5 text-xs font-bold text-cyan-300 transition-colors hover:bg-cyan-500/20 disabled:bg-slate-800/60 disabled:text-slate-600"
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-cyan-500/15 px-2.5 py-1 text-xs font-bold text-cyan-300 transition-all hover:bg-cyan-500/25 disabled:opacity-40"
                   >
                     {copiedKey === 'ping_ep' ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
                     <span>{copiedKey === 'ping_ep' ? 'Tersalin' : 'Salin'}</span>
@@ -454,77 +433,76 @@ export default function IntegrationsPage() {
                       href={pingEndpoint}
                       target="_blank"
                       rel="noreferrer"
-                      className="flex items-center gap-1 rounded-lg bg-cyan-500/20 px-2.5 py-1.5 text-xs font-bold text-cyan-300"
+                      className="flex items-center gap-1 rounded-lg bg-cyan-500/20 px-2 py-1 text-xs font-bold text-cyan-300"
                     >
-                      <span>Buka</span>
                       <ExternalLink className="w-3 h-3" />
                     </a>
                   )}
                 </div>
               </div>
-              <div className={`rounded-xl border p-3 font-mono text-[11px] leading-relaxed ${
-                isConnected ? 'border-cyan-500/10 bg-slate-950 text-cyan-300' : 'border-white/5 bg-slate-950/70 text-slate-500'
+              <div className={`rounded-xl border p-2.5 font-mono text-[10px] truncate ${
+                isConnected ? 'border-cyan-500/20 bg-black/40 text-cyan-300' : 'border-white/5 bg-black/30 text-slate-500'
               }`}>
-                {isConnected ? pingEndpoint : 'Hubungkan Telegram dulu untuk mengaktifkan URL tes.'}
+                {isConnected ? pingEndpoint : 'Hubungkan Telegram terlebih dahulu.'}
               </div>
             </div>
           </div>
 
-          {/* Setup Steps Guide */}
-          <div className="space-y-3 pt-2">
-            <h4 className="text-xs font-bold text-white uppercase tracking-wider">
-              Panduan 6 Langkah Pembuatan Pintasan di iPhone:
+          {/* Setup Guide */}
+          <div className="space-y-2 pt-1">
+            <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+              Panduan Pembuatan Pintasan di iPhone:
             </h4>
-            <div className="space-y-2 text-xs">
+            <div className="space-y-1.5 text-xs">
               {[
-                'Buka aplikasi Pintasan (Shortcuts) di iPhone, ketuk tombol +, lalu beri nama "Scan MoneyAssist".',
-                'Ketuk Tambah Tindakan, cari dan pilih tindakan "Ambil Tangkapan Layar" (Take Screenshot).',
-                'Cari tindakan "Dapatkan Isi URL" (Get Contents of URL), lalu tempel URL Endpoint Upload di atas.',
-                'Buka Tampilkan Lebih Banyak (Show More) di tindakan Dapatkan Isi URL. Pilih Method: POST, Request Body: Form.',
-                'Di bagian Form, tambah field File dengan nama "photo". Isi nilainya dengan hasil dari tindakan Ambil Tangkapan Layar. Tidak perlu menambah field token karena token sudah ada di URL endpoint.',
-                'Buka Pengaturan iPhone > Aksesibilitas > Sentuh > Ketuk Bagian Belakang (Back Tap) > Ketuk Dua Kali > pilih "Scan MoneyAssist". Selesai!'
+                'Buka aplikasi Pintasan (Shortcuts) di iPhone, ketuk +, lalu beri nama "Scan MoneyAssist".',
+                'Tambah tindakan "Ambil Tangkapan Layar" (Take Screenshot).',
+                'Tambah tindakan "Dapatkan Isi URL" (Get Contents of URL), lalu masukkan URL Endpoint Upload di atas.',
+                'Pilih Method: POST, Request Body: Form, isi field File "photo" dengan hasil Tangkapan Layar.',
+                'Buka Pengaturan iPhone > Aksesibilitas > Sentuh > Ketuk Bagian Belakang (Back Tap) > Ketuk Dua Kali > pilih "Scan MoneyAssist".'
               ].map((step, idx) => (
-                <div key={idx} className="flex items-start gap-3 p-3 rounded-xl bg-slate-950/60 border border-white/5 text-slate-300">
-                  <span className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5">
+                <div key={idx} className="flex items-start gap-2.5 p-2.5 rounded-xl bg-white/[0.02] border border-white/[0.05] text-slate-300">
+                  <span className="w-4 h-4 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-[9px] shrink-0 mt-0.5">
                     {idx + 1}
                   </span>
-                  <span>{step}</span>
+                  <span className="text-[11px] leading-relaxed">{step}</span>
                 </div>
               ))}
             </div>
           </div>
         </div>
 
-        <div className="glass-panel rounded-3xl border border-rose-500/15 bg-rose-950/10 p-6 md:p-8">
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-            <div className="max-w-2xl">
+        {/* 3. Reset Data Card */}
+        <div className="rounded-2xl macos-card border-rose-500/20 p-5 sm:p-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="max-w-xl">
               <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-rose-500/20 bg-rose-500/10 text-rose-300">
+                <div className="w-10 h-10 rounded-xl border border-rose-500/25 bg-rose-500/15 text-rose-400 flex items-center justify-center shrink-0">
                   <Trash2 className="h-5 w-5" />
                 </div>
                 <div>
-                  <h3 className="text-base font-black text-white">Mulai dari Awal</h3>
-                  <p className="mt-1 text-xs leading-relaxed text-slate-400">
-                    Hapus transaksi, anggaran, target tabungan, dan riwayat AI. Akun, login, kode pairing, dan sambungan Telegram tetap aktif.
+                  <h3 className="text-sm font-bold text-white">Bersihkan Riwayat Transaksi</h3>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Hapus seluruh data transaksi dan anggaran tanpa menghapus akun atau kode pairing Anda.
                   </p>
                 </div>
               </div>
             </div>
 
-            <div className="w-full space-y-2 lg:max-w-md">
+            <div className="w-full space-y-2 lg:max-w-xs">
               <input
                 type="text"
                 value={resetConfirm}
                 onChange={(e) => setResetConfirm(e.target.value)}
                 placeholder="Ketik HAPUS DATA"
-                className="w-full rounded-xl border border-white/10 bg-slate-950 px-4 py-3 font-mono text-xs font-bold text-white outline-none transition-colors placeholder:text-slate-600 focus:border-rose-500"
+                className="w-full rounded-xl border border-white/10 bg-black/40 px-3.5 py-2 font-mono text-xs font-bold text-white outline-none focus:border-rose-500/60 min-h-[38px]"
               />
               <button
                 onClick={handleResetAllData}
                 disabled={resetConfirm.trim().toUpperCase() !== 'HAPUS DATA' || resettingData}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-rose-500 px-4 py-3 text-xs font-black text-white transition-colors hover:bg-rose-400 disabled:bg-slate-800 disabled:text-slate-500"
+                className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-rose-500/90 hover:bg-rose-500 px-4 py-2 text-xs font-bold text-white transition-all active:scale-95 disabled:opacity-40 min-h-[38px]"
               >
-                {resettingData ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                {resettingData ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
                 <span>{resettingData ? 'Menghapus...' : 'Hapus Semua Data'}</span>
               </button>
             </div>

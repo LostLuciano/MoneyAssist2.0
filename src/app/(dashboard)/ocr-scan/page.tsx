@@ -24,9 +24,6 @@ import { createClient } from '@/lib/supabase/client';
 import { formatIDR } from '@/lib/utils/currency';
 import { buildTransactionDetailNotes, getPaymentMethodFromExtracted } from '@/lib/utils/transactionDetails';
 
-/**
- * Client-Side Instant Image Compression to accelerate OCR processing by up to 10x!
- */
 async function compressImageForOCR(file: File, maxDimension: number = 1100, quality: number = 0.82): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -173,53 +170,55 @@ export default function OcrScanPage() {
   return (
     <div className="space-y-6">
       <Header
-        title="Scan Nota & Struk (Ultra-Fast OCR)"
-        subtitle="Ekstraksi instan total belanja, nama toko, tanggal, dan rincian kuantitas/harga item otomatis"
+        title="Scan Nota (Gemini Vision OCR)"
+        subtitle="Ekstraksi total belanja, nama merchant, tanggal, dan rincian item otomatis"
       />
 
-      <div className="px-6 space-y-6 max-w-6xl mx-auto">
-        {/* Speed Highlight Banner */}
-        <div className="p-3.5 rounded-2xl bg-gradient-to-r from-emerald-950/40 via-slate-900 to-cyan-950/40 border border-emerald-500/20 flex items-center justify-between text-xs">
-          <div className="flex items-center gap-2 text-emerald-400 font-semibold">
-            <Zap className="w-4 h-4 text-emerald-400 fill-emerald-400 animate-pulse" />
-            <span>AI Multimodal Vision Aktif: Membaca foto struk, marketplace, m-Banking, dan invoice secara detail.</span>
+      <div className="px-4 sm:px-6 space-y-5 max-w-6xl mx-auto">
+        {/* Banner with macOS status style */}
+        <div className="p-3.5 rounded-2xl macos-card flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-2 text-emerald-400 font-medium">
+            <Zap className="w-4 h-4 text-emerald-400 fill-emerald-400 shrink-0 animate-pulse" />
+            <span>AI Multimodal Vision: Membaca foto struk belanja, m-Banking, invoice & marketplace.</span>
           </div>
           {providerBadge && (
-            <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-mono text-[11px] font-bold">
+            <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/25 font-mono text-[10px] font-bold shrink-0">
               {providerBadge}
             </span>
           )}
         </div>
 
         {error && (
-          <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs flex items-center gap-3">
+          <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs flex items-center gap-3">
             <AlertCircle className="w-4 h-4 shrink-0" />
             <span>{error}</span>
           </div>
         )}
 
         {saveSuccess && (
-          <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs flex items-center gap-3">
+          <div className="p-4 rounded-2xl bg-emerald-500/15 border border-emerald-500/25 text-emerald-300 text-xs flex items-center gap-3">
             <CheckCircle2 className="w-4 h-4 shrink-0" />
-            <span>Transaksi dari struk berhasil disimpan! Mengalihkan ke daftar transaksi...</span>
+            <span>Transaksi struk berhasil disimpan! Mengalihkan ke halaman transaksi...</span>
           </div>
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Upload & Preview Column (5 cols) */}
-          <div className="lg:col-span-5 glass-panel p-6 rounded-3xl border border-white/5 space-y-4">
-            <h3 className="text-sm font-bold text-white flex items-center gap-2">
-              <ScanLine className="w-4 h-4 text-emerald-400" />
-              Foto Struk / Invoice
-            </h3>
+          {/* Upload & Dropzone Column (5 cols) */}
+          <div className="lg:col-span-5 rounded-2xl macos-card p-5 space-y-4">
+            <div className="flex items-center justify-between border-b border-white/[0.06] pb-3">
+              <h3 className="text-xs sm:text-sm font-bold text-white flex items-center gap-2 tracking-tight">
+                <ScanLine className="w-4 h-4 text-emerald-400" />
+                Upload Dokumen / Struk
+              </h3>
+            </div>
 
             {!imagePreview ? (
-              <label className="border-2 border-dashed border-white/10 hover:border-emerald-500/40 rounded-2xl p-8 flex flex-col items-center justify-center cursor-pointer transition-colors bg-slate-900/40 hover:bg-slate-900/60 min-h-[300px]">
-                <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center mb-3">
-                  <Camera className="w-6 h-6" />
+              <label className="border-2 border-dashed border-white/10 hover:border-emerald-500/40 rounded-2xl p-8 flex flex-col items-center justify-center cursor-pointer transition-all bg-white/[0.02] hover:bg-white/[0.04] min-h-[300px]">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-500/15 text-emerald-400 flex items-center justify-center mb-3 border border-emerald-500/25">
+                  <Camera className="w-6 h-6 stroke-[2.2]" />
                 </div>
-                <span className="text-sm font-semibold text-white">Ambil Foto / Pilih Struk</span>
-                <span className="text-xs text-slate-400 mt-1">Otomatis diekstrak detail item & harganya</span>
+                <span className="text-xs sm:text-sm font-bold text-white">Ambil Foto / Pilih Struk</span>
+                <span className="text-[11px] text-slate-400 mt-1 text-center">Format JPEG, PNG, WEBP (maks 10MB)</span>
                 <input
                   type="file"
                   accept="image/*"
@@ -229,24 +228,24 @@ export default function OcrScanPage() {
               </label>
             ) : (
               <div className="space-y-4">
-                <div className="relative rounded-2xl overflow-hidden border border-white/10 bg-slate-950 max-h-96 flex items-center justify-center">
+                <div className="relative rounded-xl overflow-hidden border border-white/10 bg-black/50 max-h-96 flex items-center justify-center">
                   <img
                     src={imagePreview}
                     alt="Receipt Preview"
-                    className="object-contain max-h-96 w-full"
+                    className="object-contain max-h-96 w-full rounded-xl"
                   />
                   {loading && (
-                    <div className="absolute inset-0 bg-black/60 backdrop-blur-xs flex flex-col items-center justify-center gap-2 text-white">
+                    <div className="absolute inset-0 bg-black/70 backdrop-blur-sm flex flex-col items-center justify-center gap-2 text-white p-4 text-center">
                       <Loader2 className="w-8 h-8 animate-spin text-emerald-400" />
-                      <span className="text-xs font-bold">Menganalisis rincian item dengan AI...</span>
+                      <span className="text-xs font-bold">Menganalisis rincian item dengan Gemini Vision...</span>
                     </div>
                   )}
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-semibold text-slate-400 hover:text-white cursor-pointer flex items-center gap-1.5">
+                  <label className="text-xs font-semibold text-slate-400 hover:text-white cursor-pointer flex items-center gap-1.5 min-h-[36px]">
                     <RefreshCw className="w-3.5 h-3.5" />
-                    <span>Ganti Foto Struk</span>
+                    <span>Ganti Foto</span>
                     <input
                       type="file"
                       accept="image/*"
@@ -258,7 +257,7 @@ export default function OcrScanPage() {
                   <button
                     onClick={() => runOCRScan()}
                     disabled={loading}
-                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 font-bold text-xs shadow-lg shadow-emerald-500/20 transition-all hover:scale-[1.02]"
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 font-bold text-xs shadow-md shadow-emerald-500/20 active:scale-95 transition-all min-h-[36px]"
                   >
                     {loading ? (
                       <>
@@ -267,7 +266,7 @@ export default function OcrScanPage() {
                       </>
                     ) : (
                       <>
-                        <Sparkles className="w-4 h-4" />
+                        <Sparkles className="w-3.5 h-3.5" />
                         <span>Pindai Ulang</span>
                       </>
                     )}
@@ -277,55 +276,50 @@ export default function OcrScanPage() {
             )}
           </div>
 
-          {/* Extracted Data & Itemized Breakdown Column (7 cols) */}
-          <div className="lg:col-span-7 glass-panel p-6 rounded-3xl border border-white/5 space-y-4 flex flex-col justify-between">
+          {/* Extracted Inspector Column (7 cols) */}
+          <div className="lg:col-span-7 rounded-2xl macos-card p-5 space-y-4 flex flex-col justify-between">
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-bold text-white flex items-center gap-2">
+              <div className="flex items-center justify-between border-b border-white/[0.06] pb-3">
+                <h3 className="text-xs sm:text-sm font-bold text-white flex items-center gap-2 tracking-tight">
                   <FileText className="w-4 h-4 text-cyan-400" />
-                  Rincian Ekstraksi Transaksi
+                  Hasil Inspeksi OCR
                 </h3>
-                {providerBadge && (
-                  <span className="text-[10px] text-slate-400 font-mono">
-                    {providerBadge}
-                  </span>
-                )}
               </div>
 
               {!extractedData ? (
                 <div className="p-12 text-center text-slate-500 text-xs flex flex-col items-center justify-center min-h-[260px] space-y-2">
                   <Receipt className="w-10 h-10 text-slate-600 mb-1" />
                   <p className="font-semibold text-slate-300">Belum ada struk yang dipindai</p>
-                  <p className="text-slate-500 max-w-xs">
-                    Unggah atau foto struk belanja untuk melihat rincian nama barang, kuantitas/buah, harga satuan, dan subtotal secara terstruktur.
+                  <p className="text-slate-400 max-w-xs text-[11px]">
+                    Unggah atau foto struk belanja untuk melihat rincian nama item, kuantitas, harga satuan, dan total otomatis.
                   </p>
                 </div>
               ) : (
                 <div className="space-y-4 animate-in fade-in duration-200">
-                  {/* Merchant & Total Highlight */}
-                  <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-950/60 via-slate-900 to-slate-900 border border-emerald-500/20 flex items-center justify-between">
+                  {/* Total & Merchant Highlight */}
+                  <div className="p-4 rounded-xl bg-white/[0.03] border border-white/[0.08] flex items-center justify-between">
                     <div>
-                      <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-                        Toko / Merchant / Invoice
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                        Merchant / Toko
                       </span>
-                      <h4 className="text-base font-bold text-white mt-0.5">
+                      <h4 className="text-sm font-bold text-white mt-0.5">
                         {extractedData.merchant || 'Struk Belanja'}
                       </h4>
                     </div>
                     <div className="text-right">
-                      <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-                        Total Bayar
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                        Total Pembayaran
                       </span>
-                      <h4 className="text-xl font-black text-emerald-400 mt-0.5">
+                      <h4 className="text-lg font-black text-emerald-400 font-mono mt-0.5">
                         {formatIDR(extractedData.amount)}
                       </h4>
                     </div>
                   </div>
 
-                  {/* Summary Details */}
+                  {/* Metadata row */}
                   <div className="grid grid-cols-2 gap-3">
-                    <div className="p-3 rounded-xl bg-slate-900/80 border border-white/5">
-                      <span className="text-[11px] text-slate-400 flex items-center gap-1">
+                    <div className="p-3 rounded-xl bg-white/[0.02] border border-white/[0.06]">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
                         <Calendar className="w-3 h-3 text-slate-500" />
                         Tanggal
                       </span>
@@ -334,8 +328,8 @@ export default function OcrScanPage() {
                       </p>
                     </div>
 
-                    <div className="p-3 rounded-xl bg-slate-900/80 border border-white/5">
-                      <span className="text-[11px] text-slate-400 flex items-center gap-1">
+                    <div className="p-3 rounded-xl bg-white/[0.02] border border-white/[0.06]">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
                         <Tag className="w-3 h-3 text-slate-500" />
                         Kategori Disarankan
                       </span>
@@ -345,27 +339,27 @@ export default function OcrScanPage() {
                     </div>
                   </div>
 
-                  {/* Detailed Items Table */}
+                  {/* Items List */}
                   {extractedData.items && extractedData.items.length > 0 && (
-                    <div className="rounded-2xl border border-white/5 bg-slate-900/80 overflow-hidden">
-                      <div className="px-4 py-2.5 bg-slate-950/60 border-b border-white/5 flex items-center justify-between text-xs font-bold text-slate-300">
+                    <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] overflow-hidden">
+                      <div className="px-3.5 py-2 bg-white/[0.03] border-b border-white/[0.06] flex items-center justify-between text-xs font-bold text-slate-300">
                         <span className="flex items-center gap-1.5">
                           <ListOrdered className="w-3.5 h-3.5 text-cyan-400" />
-                          Rincian Barang & Kuantitas ({extractedData.items.length} Item)
+                          Rincian Item ({extractedData.items.length} Barang)
                         </span>
                       </div>
 
                       <div className="overflow-x-auto">
                         <table className="w-full text-left text-xs text-slate-300">
-                          <thead className="bg-slate-950/40 text-[11px] text-slate-400 uppercase tracking-wider font-semibold border-b border-white/5">
+                          <thead className="bg-white/[0.02] text-[10px] text-slate-400 uppercase tracking-wider font-semibold border-b border-white/[0.06]">
                             <tr>
-                              <th className="px-3.5 py-2">Nama Barang</th>
-                              <th className="px-3.5 py-2 text-center">Qty</th>
-                              <th className="px-3.5 py-2 text-right">Harga Satuan</th>
-                              <th className="px-3.5 py-2 text-right">Subtotal</th>
+                              <th className="px-3 py-2">Nama Barang</th>
+                              <th className="px-3 py-2 text-center">Qty</th>
+                              <th className="px-3 py-2 text-right">Harga Satuan</th>
+                              <th className="px-3 py-2 text-right">Subtotal</th>
                             </tr>
                           </thead>
-                          <tbody className="divide-y divide-white/5 text-[11px]">
+                          <tbody className="divide-y divide-white/[0.04] text-[11px]">
                             {extractedData.items.map((it: any, idx: number) => {
                               const isObj = typeof it === 'object';
                               const name = isObj ? it.name : it;
@@ -374,17 +368,17 @@ export default function OcrScanPage() {
                               const total = isObj ? Number(it.total) || price * qty : 0;
 
                               return (
-                                <tr key={idx} className="hover:bg-slate-850/40 transition-colors">
-                                  <td className="px-3.5 py-2.5 font-medium text-white max-w-[180px] truncate">
+                                <tr key={idx} className="hover:bg-white/[0.03] transition-colors">
+                                  <td className="px-3 py-2 font-medium text-white max-w-[160px] truncate">
                                     {name}
                                   </td>
-                                  <td className="px-3.5 py-2.5 text-center text-cyan-400 font-semibold">
+                                  <td className="px-3 py-2 text-center text-cyan-400 font-semibold font-mono">
                                     {qty}x
                                   </td>
-                                  <td className="px-3.5 py-2.5 text-right text-slate-400">
+                                  <td className="px-3 py-2 text-right text-slate-400 font-mono">
                                     {price > 0 ? formatIDR(price) : '-'}
                                   </td>
-                                  <td className="px-3.5 py-2.5 text-right font-bold text-slate-200">
+                                  <td className="px-3 py-2 text-right font-bold text-slate-200 font-mono">
                                     {total > 0 ? formatIDR(total) : '-'}
                                   </td>
                                 </tr>
@@ -396,7 +390,6 @@ export default function OcrScanPage() {
                     </div>
                   )}
 
-                  {/* Additional notes/summary */}
                   {extractedData.notes && (
                     <p className="text-[11px] text-slate-400 italic">
                       Catatan: {extractedData.notes}
@@ -407,16 +400,16 @@ export default function OcrScanPage() {
             </div>
 
             {extractedData && (
-              <div className="pt-4 border-t border-white/5">
+              <div className="pt-4 border-t border-white/[0.06]">
                 <button
                   onClick={handleSaveToTransactions}
                   disabled={saving || saveSuccess}
-                  className="w-full py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 transition-all hover:scale-[1.01]"
+                  className="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 shadow-md shadow-emerald-500/20 active:scale-95 transition-all min-h-[40px]"
                 >
                   {saving ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Menyimpan Transaksi & Rincian...</span>
+                      <span>Menyimpan Transaksi...</span>
                     </>
                   ) : (
                     <>

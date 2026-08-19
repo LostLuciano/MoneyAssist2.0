@@ -9,6 +9,7 @@ import {
   AlertCircle,
   Sparkles,
   Trash2,
+  X,
 } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import { createClient } from '@/lib/supabase/client';
@@ -50,14 +51,12 @@ export default function BudgetsPage() {
       }
 
       if (user) {
-        // Fetch budgets
         const { data: bData } = await supabase
           .from('budgets')
           .select('*, categories(*)')
           .eq('month', currentMonth)
           .eq('year', currentYear);
 
-        // Fetch transactions for this month to calculate spent per category
         const { data: txData } = await supabase
           .from('transactions')
           .select('category_id, amount, type')
@@ -137,52 +136,52 @@ export default function BudgetsPage() {
     <div className="space-y-6">
       <Header
         title="Anggaran Bulanan"
-        subtitle="Pantau batas alokasi pengeluaran per kategori agar tidak overspending"
+        subtitle="Batas limit alokasi pengeluaran per kategori & pencegahan overspending"
       />
 
       <div className="px-4 sm:px-6 space-y-6 max-w-6xl mx-auto">
-        {/* Summary Card */}
-        <div className="glass-panel p-6 rounded-3xl border border-white/5 flex flex-col md:flex-row items-center justify-between gap-6">
+        {/* macOS Summary Banner */}
+        <div className="p-5 rounded-2xl macos-card flex flex-col md:flex-row items-start md:items-center justify-between gap-4 select-none">
           <div>
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-              Total Alokasi Anggaran Bulan Ini
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+              Total Anggaran Bulan Ini
             </span>
-            <div className="text-3xl font-black text-white mt-1">
+            <div className="text-2xl sm:text-3xl font-bold text-white tracking-tight font-mono mt-1">
               {formatIDR(totalSpent)}{' '}
-              <span className="text-sm font-normal text-slate-400">
+              <span className="text-xs sm:text-sm font-normal text-slate-400 font-sans">
                 / {formatIDR(totalBudget)}
               </span>
             </div>
             <p className="text-xs text-slate-400 mt-1">
               {totalBudget > 0
-                ? `Telah terpakai ${((totalSpent / totalBudget) * 100).toFixed(0)}% dari total batas limit.`
+                ? `Telah terpakai ${((totalSpent / totalBudget) * 100).toFixed(0)}% dari total limit anggaran.`
                 : 'Belum ada batas anggaran yang diatur.'}
             </p>
           </div>
 
           <button
             onClick={() => setShowAddModal(true)}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs shadow-lg shadow-emerald-500/20 transition-all hover:scale-[1.02]"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs shadow-md shadow-emerald-500/20 active:scale-95 transition-all min-h-[38px]"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-4 h-4 stroke-[2.5]" />
             <span>Set Anggaran Kategori</span>
           </button>
         </div>
 
         {/* Budget Items Grid */}
         {budgets.length === 0 ? (
-          <div className="p-12 text-center text-slate-500 text-sm glass-panel rounded-3xl border border-white/5 space-y-3">
-            <PieChart className="w-10 h-10 mx-auto text-slate-600" />
-            <p className="font-semibold text-white">Belum ada anggaran yang diatur bulan ini</p>
-            <p className="text-xs text-slate-400 max-w-sm mx-auto">
-              Atur batas limit bulanan untuk kategori pengeluaran seperti Makanan, Transportasi, atau Belanja agar pengeluaran tetap terkontrol.
+          <div className="p-12 text-center text-slate-500 text-xs rounded-2xl macos-card space-y-2">
+            <PieChart className="w-9 h-9 mx-auto text-slate-600 mb-1" />
+            <p className="font-bold text-white text-sm">Belum ada anggaran yang diatur</p>
+            <p className="text-slate-400 max-w-sm mx-auto text-[11px]">
+              Atur batas limit bulanan untuk kategori Makanan, Transportasi, atau Belanja agar pengeluaran tetap terkontrol.
             </p>
             <button
               onClick={() => setShowAddModal(true)}
-              className="mt-2 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-500 text-slate-950 font-bold text-xs"
+              className="mt-3 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-500 text-slate-950 font-bold text-xs active:scale-95 transition-all shadow-md shadow-emerald-500/20"
             >
-              <Plus className="w-4 h-4" />
-              <span>Tambah Anggaran Pertama</span>
+              <Plus className="w-3.5 h-3.5" />
+              <span>Tambah Anggaran</span>
             </button>
           </div>
         ) : (
@@ -195,25 +194,25 @@ export default function BudgetsPage() {
               return (
                 <div
                   key={b.id}
-                  className="glass-panel p-5 rounded-2xl border border-white/5 space-y-3.5 relative group"
+                  className="p-5 rounded-2xl macos-card space-y-3 relative group select-none"
                 >
                   <div className="flex items-center justify-between">
-                    <span className="font-bold text-sm text-white">{b.category}</span>
+                    <span className="font-bold text-xs sm:text-sm text-white tracking-tight">{b.category}</span>
                     <div className="flex items-center gap-2">
                       <span
-                        className={`text-xs font-bold px-2 py-0.5 rounded-full border ${
+                        className={`text-[10px] font-bold font-mono px-2 py-0.5 rounded-full border ${
                           isOver
-                            ? 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                            ? 'bg-rose-500/15 text-rose-300 border-rose-500/25'
                             : isWarning
-                            ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
-                            : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                            ? 'bg-amber-500/15 text-amber-300 border-amber-500/25'
+                            : 'bg-emerald-500/15 text-emerald-300 border-emerald-500/25'
                         }`}
                       >
                         {isOver ? 'Over Budget' : `${percentage}%`}
                       </span>
                       <button
                         onClick={() => handleDeleteBudget(b.id)}
-                        className="opacity-0 group-hover:opacity-100 p-1 text-slate-500 hover:text-rose-400 transition-all"
+                        className="opacity-0 group-hover:opacity-100 p-1 text-slate-500 hover:text-rose-400 transition-all rounded"
                         title="Hapus Anggaran"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -221,9 +220,9 @@ export default function BudgetsPage() {
                     </div>
                   </div>
 
-                  <div className="w-full bg-slate-800 rounded-full h-2.5 overflow-hidden">
+                  <div className="w-full bg-white/[0.08] rounded-full h-2 overflow-hidden">
                     <div
-                      className={`h-2.5 rounded-full transition-all ${
+                      className={`h-2 rounded-full transition-all ${
                         isOver
                           ? 'bg-rose-500'
                           : isWarning
@@ -231,12 +230,12 @@ export default function BudgetsPage() {
                           : 'bg-emerald-500'
                       }`}
                       style={{ width: `${Math.min(100, (b.spent / b.limit) * 100)}%` }}
-                    ></div>
+                    />
                   </div>
 
-                  <div className="flex items-center justify-between text-xs text-slate-400">
-                    <span>Terpakai: <strong className="text-white">{formatIDR(b.spent)}</strong></span>
-                    <span>Limit: <strong className="text-white">{formatIDR(b.limit)}</strong></span>
+                  <div className="flex items-center justify-between text-xs text-slate-400 font-mono">
+                    <span>Terpakai: <strong className="text-white font-bold">{formatIDR(b.spent)}</strong></span>
+                    <span>Limit: <strong className="text-white font-bold">{formatIDR(b.limit)}</strong></span>
                   </div>
                 </div>
               );
@@ -245,22 +244,40 @@ export default function BudgetsPage() {
         )}
       </div>
 
+      {/* macOS Modal Dialog */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-          <div className="bg-[#0f172a] border border-white/10 rounded-2xl p-6 w-full max-w-md shadow-2xl space-y-4">
-            <h3 className="text-base font-bold text-white">Set Anggaran Kategori</h3>
-            <form onSubmit={handleAddBudget} className="space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-in fade-in select-none">
+          <div className="macos-window rounded-2xl w-full max-w-md shadow-macos-window overflow-hidden">
+            {/* Titlebar with Traffic Lights */}
+            <div className="flex items-center justify-between border-b border-white/[0.08] px-5 py-3.5 bg-white/[0.02]">
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-rose-500 inline-block" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 inline-block" />
+                </div>
+                <span className="text-xs font-bold text-white tracking-tight ml-2">Set Anggaran Kategori</span>
+              </div>
+              <button
+                onClick={() => setShowAddModal(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-white transition-all active:scale-95"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleAddBudget} className="p-5 space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">
                   Pilih Kategori Pengeluaran
                 </label>
                 <select
                   value={selectedCategoryId}
                   onChange={(e) => setSelectedCategoryId(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-900 border border-white/10 rounded-xl text-white text-xs focus:outline-none focus:border-emerald-500"
+                  className="w-full px-3.5 py-2.5 bg-[#0e1424] border border-white/10 rounded-xl text-white text-xs focus:outline-none focus:border-emerald-500/60 min-h-[38px]"
                 >
                   {categories.map((c) => (
-                    <option key={c.id} value={c.id}>
+                    <option key={c.id} value={c.id} className="bg-[#0e1424]">
                       {c.name}
                     </option>
                   ))}
@@ -268,29 +285,29 @@ export default function BudgetsPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">
                   Batas Limit Bulanan (Rp)
                 </label>
                 <input
                   type="number"
                   value={newLimit}
                   onChange={(e) => setNewLimit(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-900 border border-white/10 rounded-xl text-white text-xs focus:outline-none focus:border-emerald-500"
+                  className="w-full px-3.5 py-2.5 bg-white/[0.04] border border-white/10 rounded-xl text-white font-mono font-bold text-sm focus:outline-none focus:border-emerald-500/60 min-h-[38px]"
                   required
                 />
               </div>
 
-              <div className="flex justify-end gap-2 pt-2">
+              <div className="flex justify-end gap-2 pt-2 border-t border-white/[0.06]">
                 <button
                   type="button"
                   onClick={() => setShowAddModal(false)}
-                  className="px-4 py-2 text-xs font-semibold text-slate-400 hover:text-white"
+                  className="px-4 py-2 text-xs font-semibold text-slate-300 hover:text-white rounded-xl bg-white/[0.05] hover:bg-white/[0.08] transition-all min-h-[36px]"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl bg-emerald-500 text-slate-950 font-bold text-xs"
+                  className="px-5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs shadow-md shadow-emerald-500/20 active:scale-95 transition-all min-h-[36px]"
                 >
                   Simpan Anggaran
                 </button>

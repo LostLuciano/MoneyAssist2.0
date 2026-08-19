@@ -11,12 +11,23 @@ interface ExpenseChartProps {
   }[];
 }
 
+const APPLE_PALETTE = [
+  '#30d158', // Emerald Mint
+  '#0a84ff', // Royal Blue
+  '#ff9f0a', // Amber Orange
+  '#bf5af2', // Purple
+  '#ff453a', // Red
+  '#64d2ff', // Cyan
+  '#ffd60a', // Yellow
+  '#ac8e68', // Brown
+];
+
 export default function ExpenseChart({ data }: ExpenseChartProps) {
   if (!data || data.length === 0) {
     return (
-      <div className="h-64 flex flex-col items-center justify-center text-slate-500 text-sm">
-        <p>Belum ada data pengeluaran untuk periode ini.</p>
-        <p className="text-xs text-slate-600 mt-1">Catat transaksi untuk melihat visualisasi kategori.</p>
+      <div className="h-64 flex flex-col items-center justify-center text-slate-500 text-xs">
+        <p className="font-medium text-slate-400">Belum ada data pengeluaran bulan ini.</p>
+        <p className="text-slate-600 mt-1">Catat transaksi untuk melihat diagram kategori.</p>
       </div>
     );
   }
@@ -25,9 +36,9 @@ export default function ExpenseChart({ data }: ExpenseChartProps) {
     if (active && payload && payload.length) {
       const item = payload[0];
       return (
-        <div className="bg-slate-900 border border-white/10 p-2.5 rounded-xl shadow-xl text-xs">
+        <div className="bg-[#0c101a]/95 backdrop-blur-xl border border-white/15 p-2.5 rounded-xl shadow-macos-dropdown text-xs">
           <p className="font-semibold text-white">{item.name}</p>
-          <p className="text-emerald-400 font-bold mt-0.5">{formatIDR(item.value)}</p>
+          <p className="text-emerald-400 font-bold font-mono mt-0.5">{formatIDR(item.value)}</p>
         </div>
       );
     }
@@ -42,20 +53,25 @@ export default function ExpenseChart({ data }: ExpenseChartProps) {
             data={data}
             cx="50%"
             cy="50%"
-            innerRadius={55}
-            outerRadius={80}
+            innerRadius={58}
+            outerRadius={84}
             paddingAngle={4}
             dataKey="value"
           >
             {data.map((entry, index) => (
-              <Cell key={`cell-${index}`} fill={entry.color || '#10b981'} stroke="#0b0f19" strokeWidth={2} />
+              <Cell
+                key={`cell-${index}`}
+                fill={entry.color || APPLE_PALETTE[index % APPLE_PALETTE.length]}
+                stroke="#0e1424"
+                strokeWidth={2}
+              />
             ))}
           </Pie>
           <Tooltip content={<CustomTooltip />} />
           <Legend
             verticalAlign="bottom"
             height={36}
-            formatter={(value) => <span className="text-xs text-slate-300">{value}</span>}
+            formatter={(value) => <span className="text-[11px] font-medium text-slate-300">{value}</span>}
           />
         </PieChart>
       </ResponsiveContainer>

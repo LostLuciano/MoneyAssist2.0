@@ -1,56 +1,62 @@
 'use client';
 
 import Link from 'next/link';
-import { Sparkles, ArrowRight, ShieldCheck, PieChart, Bot } from 'lucide-react';
+import { Sparkles, ArrowRight, ShieldCheck, PieChart, Bot, LayoutDashboard } from 'lucide-react';
 
 export default function Navbar() {
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-white/5 bg-[#090d16]/80 backdrop-blur-xl">
+    <header className="sticky top-0 z-50 w-full border-b border-white/[0.08] bg-[#0c101a]/80 backdrop-blur-2xl">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-        {/* Brand */}
-        <Link href="/" className="flex items-center gap-2.5 group">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-400 p-0.5 shadow-lg shadow-emerald-500/20 group-hover:scale-105 transition-transform">
-            <div className="w-full h-full bg-[#090d16] rounded-[10px] flex items-center justify-center">
-              <Sparkles className="w-5 h-5 text-emerald-400" />
-            </div>
+        {/* Brand with macOS traffic lights & icon */}
+        <div className="flex items-center gap-4">
+          <div className="hidden sm:flex items-center gap-1.5 pr-2 border-r border-white/10">
+            <span className="w-2.5 h-2.5 rounded-full bg-rose-500 inline-block" />
+            <span className="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block" />
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 inline-block" />
           </div>
-          <div>
-            <span className="text-xl font-bold tracking-tight text-white flex items-center gap-1.5">
-              MoneyAssist
-              <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-mono font-medium">
+
+          <Link href="/" className="flex items-center gap-2.5 group">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 p-0.5 shadow-md shadow-emerald-500/20 group-hover:scale-105 transition-transform">
+              <div className="w-full h-full bg-[#0c101a] rounded-[10px] flex items-center justify-center">
+                <Sparkles className="w-4 h-4 text-emerald-400" />
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-base font-bold tracking-tight text-white">MoneyAssist</span>
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-mono font-semibold">
                 2.0
               </span>
-            </span>
-          </div>
-        </Link>
+            </div>
+          </Link>
+        </div>
 
         {/* Links */}
-        <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-slate-300">
-          <a href="#features" className="hover:text-emerald-400 transition-colors">
-            Fitur 2.0
+        <nav className="hidden md:flex items-center gap-6 text-xs font-semibold text-slate-300">
+          <a href="#features" className="hover:text-white transition-colors">
+            Fitur Utama
           </a>
-          <a href="#audit-demo" className="hover:text-emerald-400 transition-colors">
+          <a href="#audit-demo" className="hover:text-white transition-colors">
             AI Financial Audit
           </a>
-          <a href="#architecture" className="hover:text-emerald-400 transition-colors">
-            Supabase Engine
+          <a href="#architecture" className="hover:text-white transition-colors">
+            Supabase Security
           </a>
         </nav>
 
-        {/* CTA */}
-        <div className="flex items-center gap-3">
+        {/* Action Buttons */}
+        <div className="flex items-center gap-2.5">
           <Link
             href="/login"
-            className="text-sm font-medium text-slate-300 hover:text-white px-3 py-2 rounded-lg transition-colors"
+            className="text-xs font-semibold text-slate-300 hover:text-white px-3.5 py-2 rounded-xl hover:bg-white/5 transition-all min-h-[36px] flex items-center"
           >
             Masuk
           </Link>
           <Link
             href="/register"
-            className="flex items-center gap-1.5 text-sm font-semibold bg-emerald-500 hover:bg-emerald-400 text-slate-950 px-4 py-2 rounded-xl transition-all shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30 hover:scale-[1.02]"
+            className="flex items-center gap-1.5 text-xs font-bold bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-slate-950 px-4 py-2 rounded-xl transition-all shadow-md shadow-emerald-500/25 border border-emerald-400/30 min-h-[36px]"
           >
-            Mulai Gratis
-            <ArrowRight className="w-4 h-4" />
+            <span>Mulai Gratis</span>
+            <ArrowRight className="w-3.5 h-3.5" />
           </Link>
         </div>
       </div>

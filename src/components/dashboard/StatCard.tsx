@@ -24,62 +24,52 @@ export default function StatCard({
 }: StatCardProps) {
   const colorMap = {
     emerald: {
-      bg: 'bg-emerald-500/10',
+      bg: 'bg-emerald-500/15',
       text: 'text-emerald-400',
-      border: 'border-emerald-500/20',
-      shadow: 'shadow-emerald-500/5',
+      border: 'border-emerald-500/25',
     },
     blue: {
-      bg: 'bg-cyan-500/10',
-      text: 'text-cyan-400',
-      border: 'border-cyan-500/20',
-      shadow: 'shadow-cyan-500/5',
+      bg: 'bg-sky-500/15',
+      text: 'text-sky-400',
+      border: 'border-sky-500/25',
     },
     rose: {
-      bg: 'bg-rose-500/10',
+      bg: 'bg-rose-500/15',
       text: 'text-rose-400',
-      border: 'border-rose-500/20',
-      shadow: 'shadow-rose-500/5',
+      border: 'border-rose-500/25',
     },
     amber: {
-      bg: 'bg-amber-500/10',
+      bg: 'bg-amber-500/15',
       text: 'text-amber-400',
-      border: 'border-amber-500/20',
-      shadow: 'shadow-amber-500/5',
+      border: 'border-amber-500/25',
     },
     purple: {
-      bg: 'bg-purple-500/10',
+      bg: 'bg-purple-500/15',
       text: 'text-purple-400',
-      border: 'border-purple-500/20',
-      shadow: 'shadow-purple-500/5',
+      border: 'border-purple-500/25',
     },
   };
 
   const style = colorMap[accentColor] || colorMap.emerald;
 
   return (
-    <div
-      className={clsx(
-        'p-5 rounded-2xl glass-panel glass-panel-hover border flex flex-col justify-between transition-all shadow-lg',
-        style.shadow
-      )}
-    >
+    <div className="p-5 rounded-2xl macos-card macos-card-interactive flex flex-col justify-between select-none">
       <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
           {title}
         </span>
-        <div className={clsx('p-2.5 rounded-xl border', style.bg, style.text, style.border)}>
-          <Icon className="w-4 h-4" />
+        <div className={clsx('p-2 rounded-xl border', style.bg, style.text, style.border)}>
+          <Icon className="w-4 h-4 stroke-[2.2]" />
         </div>
       </div>
 
       <div className="mt-4">
-        <div className="text-2xl font-bold text-white tracking-tight">{value}</div>
+        <div className="text-xl sm:text-2xl font-bold text-white tracking-tight font-mono">{value}</div>
         {subtitle && <p className="text-xs text-slate-400 mt-1">{subtitle}</p>}
       </div>
 
       {trend && (
-        <div className="mt-3 pt-3 border-t border-white/5 flex items-center gap-1.5 text-xs">
+        <div className="mt-3 pt-3 border-t border-white/[0.06] flex items-center gap-1.5 text-xs">
           {trend.isNeutral ? (
             <Minus className="w-3.5 h-3.5 text-slate-400" />
           ) : trend.isPositive ? (
@@ -89,7 +79,7 @@ export default function StatCard({
           )}
           <span
             className={clsx(
-              'font-medium',
+              'font-semibold',
               trend.isNeutral
                 ? 'text-slate-400'
                 : trend.isPositive
@@ -99,7 +89,7 @@ export default function StatCard({
           >
             {trend.value}
           </span>
-          <span className="text-slate-500">vs bulan lalu</span>
+          <span className="text-slate-400">vs bulan lalu</span>
         </div>
       )}
     </div>
