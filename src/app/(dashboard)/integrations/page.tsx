@@ -25,7 +25,7 @@ export default function IntegrationsPage() {
 
   const supabase = createClient();
   const origin = typeof window !== 'undefined' ? window.location.origin : 'https://moneyassist.vercel.app';
-  const botUsername = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || 'MoneyAssistAIBot';
+  const botUsername = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || 'FinMoneyAssist_bot';
 
   useEffect(() => {
     const fetchProfile = async () => {
