@@ -12,6 +12,8 @@ import {
   ShieldCheck,
   Zap,
   HelpCircle,
+  MessageSquare,
+  ArrowUpRight,
 } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import { createClient } from '@/lib/supabase/client';
@@ -23,17 +25,26 @@ export default function IntegrationsPage() {
 
   const supabase = createClient();
   const origin = typeof window !== 'undefined' ? window.location.origin : 'https://moneyassist.vercel.app';
+  const botUsername = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || 'MoneyAssistAIBot';
 
   useEffect(() => {
     const fetchProfile = async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
-          const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+          let { data } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+          
+          // Generate pairing code if null
+          if (data && !data.pairing_code) {
+            const randomCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+            await supabase.from('profiles').update({ pairing_code: randomCode }).eq('id', user.id);
+            data.pairing_code = randomCode;
+          }
+
           setProfile(data);
         } else {
           setProfile({
-            pairing_code: 'DEMO20',
+            pairing_code: 'MA2026',
             telegram_id: null,
             api_token: 'demo-token-12345',
           });
@@ -53,6 +64,8 @@ export default function IntegrationsPage() {
     setTimeout(() => setCopiedKey(null), 2000);
   };
 
+  const pairingCommand = `/pair ${profile?.pairing_code || 'KODE'}`;
+  const telegramDirectUrl = `https://t.me/${botUsername}?start=${profile?.pairing_code || ''}`;
   const uploadEndpoint = `${origin}/api/shortcut/scan`;
   const pingEndpoint = `${origin}/api/shortcut/ping?token=${profile?.api_token || profile?.telegram_id || 'demo'}`;
 
@@ -65,10 +78,10 @@ export default function IntegrationsPage() {
 
       <div className="px-6 space-y-6 max-w-5xl mx-auto">
         {/* 1. Telegram Bot Integration Card */}
-        <div className="glass-panel p-6 rounded-3xl border border-white/5 space-y-5">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 flex items-center justify-center">
+        <div className="glass-panel p-6 md:p-8 rounded-3xl border border-white/5 space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 flex items-center justify-center shrink-0">
                 <Send className="w-6 h-6" />
               </div>
               <div>
@@ -85,63 +98,93 @@ export default function IntegrationsPage() {
             </div>
 
             {profile?.telegram_id ? (
-              <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-bold">
+              <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-bold shrink-0">
                 <CheckCircle2 className="w-4 h-4" />
                 Terhubung (@{profile.telegram_username || profile.telegram_id})
               </span>
             ) : (
-              <span className="px-3 py-1 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 text-xs font-bold">
+              <span className="px-3 py-1.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 text-xs font-bold shrink-0">
                 Belum Terhubung
               </span>
             )}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
-            {/* Pairing Code */}
-            <div className="p-4 rounded-2xl bg-slate-900/80 border border-white/5 space-y-2">
-              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">
-                Kode Pairing Anda
-              </span>
-              <div className="flex items-center justify-between">
-                <span className="text-2xl font-black font-mono text-emerald-400 tracking-wider">
-                  {profile?.pairing_code || '------'}
+          {/* Quick Action Button & Ready-to-send message */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+            {/* Box 1: Direct Link */}
+            <div className="p-5 rounded-2xl bg-gradient-to-br from-cyan-950/40 via-slate-900 to-slate-900 border border-cyan-500/20 space-y-4 flex flex-col justify-between">
+              <div>
+                <span className="text-[11px] font-bold text-cyan-400 uppercase tracking-wider block">
+                  1. Buka Bot Langsung (1-Klik)
                 </span>
-                <button
-                  onClick={() => handleCopy(`/pair ${profile?.pairing_code}`, 'pair_cmd')}
-                  className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors"
-                  title="Salin Perintah Pair"
-                >
-                  {copiedKey === 'pair_cmd' ? (
-                    <Check className="w-4 h-4 text-emerald-400" />
-                  ) : (
-                    <Copy className="w-4 h-4" />
-                  )}
-                </button>
+                <p className="text-xs text-slate-300 mt-1">
+                  Klik tombol di bawah untuk membuka bot di aplikasi Telegram dan menghubungkan akun secara otomatis.
+                </p>
               </div>
+
+              <a
+                href={telegramDirectUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-cyan-500 to-teal-400 hover:opacity-90 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-cyan-500/20 transition-all hover:scale-[1.02]"
+              >
+                <Send className="w-4 h-4" />
+                <span>Buka & Hubungkan ke Bot Telegram</span>
+                <ArrowUpRight className="w-4 h-4" />
+              </a>
             </div>
 
-            {/* Instruction */}
-            <div className="md:col-span-2 p-4 rounded-2xl bg-slate-900/80 border border-white/5 space-y-2 text-xs text-slate-300">
-              <span className="font-bold text-white block">Cara Menghubungkan:</span>
-              <ol className="list-decimal list-inside space-y-1 text-slate-400">
-                <li>Buka bot Telegram Anda di aplikasi Telegram.</li>
-                <li>
-                  Ketik perintah:{' '}
-                  <code className="px-1.5 py-0.5 rounded bg-slate-950 text-emerald-400 font-mono font-bold">
-                    /pair {profile?.pairing_code || 'KODE'}
-                  </code>
-                </li>
-                <li>Setelah terhubung, bot akan otomatis mencatat setiap pesan atau foto yang Anda kirim!</li>
-              </ol>
+            {/* Box 2: Ready-to-copy message */}
+            <div className="p-5 rounded-2xl bg-slate-900/80 border border-white/5 space-y-4 flex flex-col justify-between">
+              <div>
+                <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-wider block">
+                  2. Pesan Siap Kirim (Manual Pair)
+                </span>
+                <p className="text-xs text-slate-300 mt-1">
+                  Atau salin pesan perintah ini dan kirimkan ke bot Telegram Anda:
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <div className="p-2.5 rounded-xl bg-slate-950 border border-white/10 flex items-center justify-between font-mono text-sm text-emerald-400">
+                  <span>{pairingCommand}</span>
+                  <button
+                    onClick={() => handleCopy(pairingCommand, 'pairing_cmd')}
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-sans font-semibold transition-colors"
+                  >
+                    {copiedKey === 'pairing_cmd' ? (
+                      <>
+                        <Check className="w-3.5 h-3.5 text-emerald-400" />
+                        <span className="text-emerald-400">Tersalin!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3.5 h-3.5" />
+                        <span>Salin Pesan</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
             </div>
+          </div>
+
+          {/* Quick guide */}
+          <div className="p-4 rounded-2xl bg-slate-950/60 border border-white/5 text-xs text-slate-400 space-y-1.5">
+            <p className="font-semibold text-slate-200">Fitur yang bisa dilakukan di Bot Telegram setelah terhubung:</p>
+            <ul className="list-disc list-inside space-y-1 text-slate-400">
+              <li>Ketik pesan pengeluaran bebas: <code className="text-emerald-400 font-mono">"Makan siang 25rb"</code> atau <code className="text-emerald-400 font-mono">"Bensin 50000"</code></li>
+              <li>Kirim foto struk / screenshot transaksi m-Banking untuk langsung di-scan OCR oleh AI Vision.</li>
+              <li>Ketik <code className="text-cyan-400 font-mono">/saldo</code> untuk cek ringkasan pengeluaran & sisa saldo bulan ini.</li>
+            </ul>
           </div>
         </div>
 
         {/* 2. iPhone Siri & Back Tap Shortcut Card */}
-        <div className="glass-panel p-6 rounded-3xl border border-white/5 space-y-5">
+        <div className="glass-panel p-6 md:p-8 rounded-3xl border border-white/5 space-y-6">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-2xl bg-purple-500/10 border border-purple-500/20 text-purple-400 flex items-center justify-center">
+            <div className="flex items-center gap-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-purple-500/10 border border-purple-500/20 text-purple-400 flex items-center justify-center shrink-0">
                 <Smartphone className="w-6 h-6" />
               </div>
               <div>
@@ -191,9 +234,10 @@ export default function IntegrationsPage() {
                     href={pingEndpoint}
                     target="_blank"
                     rel="noreferrer"
-                    className="px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 text-[11px] font-bold"
+                    className="px-2.5 py-1 rounded-lg bg-cyan-500/20 text-cyan-300 text-xs font-bold flex items-center gap-1"
                   >
-                    Buka
+                    <span>Buka</span>
+                    <ExternalLink className="w-3 h-3" />
                   </a>
                 </div>
               </div>
