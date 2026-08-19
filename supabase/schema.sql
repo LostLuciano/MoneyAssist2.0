@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     financial_status TEXT DEFAULT 'Controlled Spending',
     telegram_id TEXT UNIQUE,
     telegram_username TEXT,
-    pairing_code TEXT,
+    pairing_code TEXT UNIQUE,
     api_token UUID DEFAULT uuid_generate_v4(),
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -35,6 +35,10 @@ CREATE POLICY "Users can update their own profile"
     ON public.profiles FOR UPDATE
     USING (auth.uid() = id);
 
+CREATE POLICY "Users can insert their own profile"
+    ON public.profiles FOR INSERT
+    WITH CHECK (auth.uid() = id);
+
 -- Function and trigger to auto-create profile on auth signup
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
@@ -46,7 +50,8 @@ BEGIN
         COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.raw_user_meta_data->>'name', split_part(NEW.email, '@', 1)),
         NEW.raw_user_meta_data->>'avatar_url',
         UPPER(SUBSTRING(MD5(RANDOM()::TEXT), 1, 6))
-    );
+    )
+    ON CONFLICT (id) DO NOTHING;
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -57,7 +62,154 @@ CREATE TRIGGER on_auth_user_created
     FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
 -- ==========================================================
--- 3. CATEGORIES TABLE (System default & Custom per-user)
+-- 3. SECURE BOT & PAIRING RPC FUNCTIONS (Bypasses RLS Safely)
+-- ==========================================================
+
+-- Function 1: Pair Telegram User
+CREATE OR REPLACE FUNCTION public.pair_telegram_user(
+    p_pairing_code TEXT,
+    p_telegram_id TEXT,
+    p_telegram_username TEXT
+)
+RETURNS JSONB AS $$
+DECLARE
+    v_profile RECORD;
+    v_clean_code TEXT;
+BEGIN
+    v_clean_code := UPPER(TRIM(p_pairing_code));
+    
+    SELECT * INTO v_profile FROM public.profiles 
+    WHERE UPPER(TRIM(pairing_code)) = v_clean_code
+    LIMIT 1;
+
+    IF NOT FOUND THEN
+        RETURN jsonb_build_object('success', false, 'message', 'Kode pairing tidak ditemukan.');
+    END IF;
+
+    -- Update profile with telegram_id
+    UPDATE public.profiles
+    SET telegram_id = p_telegram_id,
+        telegram_username = p_telegram_username,
+        updated_at = NOW()
+    WHERE id = v_profile.id;
+
+    RETURN jsonb_build_object(
+        'success', true, 
+        'user_id', v_profile.id,
+        'full_name', COALESCE(v_profile.full_name, v_profile.email),
+        'email', v_profile.email
+    );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Function 2: Get Profile by Telegram ID
+CREATE OR REPLACE FUNCTION public.get_profile_by_telegram(
+    p_telegram_id TEXT
+)
+RETURNS JSONB AS $$
+DECLARE
+    v_profile RECORD;
+BEGIN
+    SELECT * INTO v_profile FROM public.profiles 
+    WHERE telegram_id = p_telegram_id
+    LIMIT 1;
+
+    IF NOT FOUND THEN
+        RETURN jsonb_build_object('found', false);
+    END IF;
+
+    RETURN jsonb_build_object(
+        'found', true,
+        'id', v_profile.id,
+        'email', v_profile.email,
+        'full_name', v_profile.full_name,
+        'pairing_code', v_profile.pairing_code,
+        'api_token', v_profile.api_token
+    );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Function 3: Add Telegram Transaction
+CREATE OR REPLACE FUNCTION public.add_telegram_transaction(
+    p_telegram_id TEXT,
+    p_type TEXT,
+    p_amount NUMERIC,
+    p_description TEXT,
+    p_category_name TEXT DEFAULT 'Lain-lain',
+    p_notes TEXT DEFAULT NULL
+)
+RETURNS JSONB AS $$
+DECLARE
+    v_profile RECORD;
+    v_category_id UUID;
+    v_tx_id UUID;
+    v_today DATE := CURRENT_DATE;
+BEGIN
+    SELECT * INTO v_profile FROM public.profiles 
+    WHERE telegram_id = p_telegram_id
+    LIMIT 1;
+
+    IF NOT FOUND THEN
+        RETURN jsonb_build_object('success', false, 'message', 'User belum terhubung.');
+    END IF;
+
+    -- Find or default category
+    SELECT id INTO v_category_id FROM public.categories 
+    WHERE name ILIKE '%' || p_category_name || '%' AND (user_id = v_profile.id OR is_system = TRUE)
+    LIMIT 1;
+
+    INSERT INTO public.transactions (
+        user_id, category_id, type, amount, description, transaction_date, payment_method, notes
+    ) VALUES (
+        v_profile.id, v_category_id, p_type, p_amount, p_description, v_today, 'Cash', p_notes
+    )
+    RETURNING id INTO v_tx_id;
+
+    RETURN jsonb_build_object(
+        'success', true,
+        'transaction_id', v_tx_id,
+        'user_name', COALESCE(v_profile.full_name, v_profile.email)
+    );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Function 4: Get Telegram Financial Summary
+CREATE OR REPLACE FUNCTION public.get_telegram_summary(
+    p_telegram_id TEXT
+)
+RETURNS JSONB AS $$
+DECLARE
+    v_profile RECORD;
+    v_income NUMERIC := 0;
+    v_expense NUMERIC := 0;
+BEGIN
+    SELECT * INTO v_profile FROM public.profiles 
+    WHERE telegram_id = p_telegram_id
+    LIMIT 1;
+
+    IF NOT FOUND THEN
+        RETURN jsonb_build_object('found', false);
+    END IF;
+
+    SELECT 
+        COALESCE(SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END), 0),
+        COALESCE(SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END), 0)
+    INTO v_income, v_expense
+    FROM public.transactions
+    WHERE user_id = v_profile.id;
+
+    RETURN jsonb_build_object(
+        'found', true,
+        'full_name', COALESCE(v_profile.full_name, v_profile.email),
+        'income', v_income,
+        'expense', v_expense,
+        'balance', (v_income - v_expense)
+    );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- ==========================================================
+-- 4. CATEGORIES TABLE (System default & Custom per-user)
 -- ==========================================================
 CREATE TABLE IF NOT EXISTS public.categories (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -109,7 +261,7 @@ INSERT INTO public.categories (name, type, icon, color, is_system) VALUES
 ON CONFLICT DO NOTHING;
 
 -- ==========================================================
--- 4. TRANSACTIONS TABLE
+-- 5. TRANSACTIONS TABLE
 -- ==========================================================
 CREATE TABLE IF NOT EXISTS public.transactions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -149,7 +301,7 @@ CREATE INDEX IF NOT EXISTS idx_transactions_user_date ON public.transactions(use
 CREATE INDEX IF NOT EXISTS idx_transactions_category ON public.transactions(category_id);
 
 -- ==========================================================
--- 5. BUDGETS TABLE
+-- 6. BUDGETS TABLE
 -- ==========================================================
 CREATE TABLE IF NOT EXISTS public.budgets (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -183,7 +335,7 @@ CREATE POLICY "Users can delete their own budgets"
     USING (auth.uid() = user_id);
 
 -- ==========================================================
--- 6. SAVINGS GOALS TABLE
+-- 7. SAVINGS GOALS TABLE
 -- ==========================================================
 CREATE TABLE IF NOT EXISTS public.savings_goals (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -220,7 +372,7 @@ CREATE POLICY "Users can delete their own savings goals"
     USING (auth.uid() = user_id);
 
 -- ==========================================================
--- 7. AI CONVERSATIONS & CHAT HISTORY TABLE
+-- 8. AI CONVERSATIONS & CHAT HISTORY TABLE
 -- ==========================================================
 CREATE TABLE IF NOT EXISTS public.ai_conversations (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -269,7 +421,7 @@ CREATE POLICY "Users can insert their own AI messages"
     WITH CHECK (auth.uid() = user_id);
 
 -- ==========================================================
--- 8. STORAGE BUCKET SETUP (Receipts)
+-- 9. STORAGE BUCKET SETUP (Receipts)
 -- ==========================================================
 INSERT INTO storage.buckets (id, name, public)
 VALUES ('receipts', 'receipts', true)

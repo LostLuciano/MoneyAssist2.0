@@ -52,12 +52,27 @@ export async function POST(req: NextRequest) {
     const telegramId = message.from.id.toString();
     const username = message.from.username || message.from.first_name || 'Pengguna';
 
-    // 1. Check if user is paired with MoneyAssist account
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('telegram_id', telegramId)
-      .single();
+    // 1. Check user profile via RPC or table
+    let profile: any = null;
+    try {
+      const { data: rpcProfile } = await supabase.rpc('get_profile_by_telegram', {
+        p_telegram_id: telegramId,
+      });
+      if (rpcProfile && rpcProfile.found) {
+        profile = rpcProfile;
+      }
+    } catch {
+      // fallback
+    }
+
+    if (!profile) {
+      const { data } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('telegram_id', telegramId)
+        .single();
+      if (data) profile = data;
+    }
 
     // -------------------------------------------------------------
     // COMMAND: /start [CODE]
@@ -67,26 +82,18 @@ export async function POST(req: NextRequest) {
       const deepLinkCode = parts[1]?.trim().toUpperCase();
 
       if (deepLinkCode) {
-        const { data: matchedProfile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('pairing_code', deepLinkCode)
-          .single();
+        const { data: pairRes, error: rpcErr } = await supabase.rpc('pair_telegram_user', {
+          p_pairing_code: deepLinkCode,
+          p_telegram_id: telegramId,
+          p_telegram_username: username,
+        });
 
-        if (matchedProfile) {
-          await supabase
-            .from('profiles')
-            .update({
-              telegram_id: telegramId,
-              telegram_username: username,
-            })
-            .eq('id', matchedProfile.id);
-
+        if (pairRes && pairRes.success) {
           await sendTelegramMessage(
             botToken,
             chatId,
             `<b>Koneksi Akun Berhasil</b>\n\n` +
-              `Akun atas nama <b>${matchedProfile.full_name || matchedProfile.email}</b> telah terhubung dengan MoneyAssist 2.0.\n\n` +
+              `Akun atas nama <b>${pairRes.full_name || pairRes.email}</b> telah terhubung dengan MoneyAssist 2.0.\n\n` +
               `<b>Panduan Penggunaan:</b>\n` +
               `- Catat Transaksi: Ketik pesan pengeluaran (contoh: <i>Makan siang 25000</i> atau <i>Beli bensin 50rb</i>)\n` +
               `- Scan Struk: Kirimkan foto nota/struk belanja atau tangkapan layar mutasi perbankan\n` +
@@ -102,7 +109,7 @@ export async function POST(req: NextRequest) {
           chatId,
           `<b>MoneyAssist 2.0 Financial System</b>\n\n` +
             `Akun Telegram Anda aktif terhubung dengan <b>${profile.full_name || profile.email}</b>.\n\n` +
-            `<b>Format Perintah:</b>\n` +
+            `<b>Format Penggunaan:</b>\n` +
             `- Catat Transaksi: Ketik nominal dan keterangan (contoh: <i>Makan siang 25000</i>)\n` +
             `- Scan Dokumen: Kirimkan foto struk pembayaran\n` +
             `- Ringkasan Saldo: Ketik <code>/saldo</code>`
@@ -114,60 +121,84 @@ export async function POST(req: NextRequest) {
           `<b>MoneyAssist 2.0 Financial System</b>\n\n` +
             `Akun Telegram Anda belum terhubung dengan akun MoneyAssist.\n\n` +
             `<b>Petunjuk Penghubungan Akun:</b>\n` +
-            `1. Buka menu Pintasan & Bot pada dashboard web MoneyAssist\n` +
-            `2. Salin Kode Pairing Anda\n` +
-            `3. Kirimkan pesan dengan format:\n<code>/pair KODE_ANDA</code>`
+            `Cukup kirimkan Kode Pairing Anda langsung di chat ini (contoh: <b>DEMO20</b> atau <b>/pair DEMO20</b>).`
         );
       }
       return NextResponse.json({ ok: true });
     }
 
     // -------------------------------------------------------------
-    // COMMAND: /pair <CODE>
+    // PAIRING HANDLER (Supports: "KODE", "/pair KODE", "pair KODE")
     // -------------------------------------------------------------
-    if (message.text && message.text.startsWith('/pair')) {
-      const code = message.text.replace('/pair', '').trim().toUpperCase();
-      if (!code) {
-        await sendTelegramMessage(
-          botToken,
-          chatId,
-          `Format tidak valid. Gunakan format:\n<code>/pair KODE_ANDA</code>`
-        );
-        return NextResponse.json({ ok: true });
+    const rawText = (message.text || '').trim();
+    const isPairCommand =
+      rawText.startsWith('/pair') ||
+      rawText.toLowerCase().startsWith('pair ') ||
+      (!profile && !rawText.includes(' ') && rawText.length >= 4 && rawText.length <= 15);
+
+    if (isPairCommand) {
+      let codeToTest = rawText;
+      if (codeToTest.startsWith('/pair')) {
+        codeToTest = codeToTest.replace('/pair', '').trim();
+      } else if (codeToTest.toLowerCase().startsWith('pair ')) {
+        codeToTest = codeToTest.replace(/^pair\s+/i, '').trim();
       }
+      codeToTest = codeToTest.toUpperCase();
 
-      const { data: matchedProfile, error: pairError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('pairing_code', code)
-        .single();
+      if (codeToTest) {
+        // Attempt RPC pairing (bypasses RLS securely)
+        const { data: pairRes, error: rpcErr } = await supabase.rpc('pair_telegram_user', {
+          p_pairing_code: codeToTest,
+          p_telegram_id: telegramId,
+          p_telegram_username: username,
+        });
 
-      if (pairError || !matchedProfile) {
-        await sendTelegramMessage(
-          botToken,
-          chatId,
-          `<b>Verifikasi Gagal</b>\n\nKode pairing tidak ditemukan. Pastikan kode yang dimasukkan sesuai dengan yang tertera di menu Pintasan & Bot web MoneyAssist.`
-        );
-        return NextResponse.json({ ok: true });
+        if (pairRes && pairRes.success) {
+          await sendTelegramMessage(
+            botToken,
+            chatId,
+            `<b>Koneksi Akun Berhasil</b>\n\n` +
+              `Akun atas nama <b>${pairRes.full_name || pairRes.email}</b> berhasil terhubung ke MoneyAssist 2.0.\n\n` +
+              `Anda dapat langsung mencatat transaksi dengan mengetik pesan (contoh: <i>Beli bensin 50000</i>) atau mengirim foto struk.`
+          );
+          return NextResponse.json({ ok: true });
+        } else {
+          // Direct fallback if RPC is not yet created in Supabase
+          const { data: directProfiles } = await supabase
+            .from('profiles')
+            .select('*')
+            .ilike('pairing_code', codeToTest);
+
+          if (directProfiles && directProfiles.length > 0) {
+            const matched = directProfiles[0];
+            await supabase
+              .from('profiles')
+              .update({
+                telegram_id: telegramId,
+                telegram_username: username,
+              })
+              .eq('id', matched.id);
+
+            await sendTelegramMessage(
+              botToken,
+              chatId,
+              `<b>Koneksi Akun Berhasil</b>\n\n` +
+                `Akun atas nama <b>${matched.full_name || matched.email}</b> berhasil terhubung.`
+            );
+            return NextResponse.json({ ok: true });
+          }
+
+          if (!profile) {
+            await sendTelegramMessage(
+              botToken,
+              chatId,
+              `<b>Verifikasi Gagal</b>\n\nKode pairing <code>${codeToTest}</code> tidak ditemukan pada sistem.\n` +
+                `Silakan periksa kembali kode Anda di menu Pintasan & Bot pada dashboard web MoneyAssist.`
+            );
+            return NextResponse.json({ ok: true });
+          }
+        }
       }
-
-      // Link telegram_id
-      await supabase
-        .from('profiles')
-        .update({
-          telegram_id: telegramId,
-          telegram_username: username,
-        })
-        .eq('id', matchedProfile.id);
-
-      await sendTelegramMessage(
-        botToken,
-        chatId,
-        `<b>Koneksi Akun Berhasil</b>\n\n` +
-          `Akun atas nama <b>${matchedProfile.full_name || matchedProfile.email}</b> berhasil terhubung.\n` +
-          `Pencatatan transaksi via teks dan foto dokumen keuangan sudah aktif.`
-      );
-      return NextResponse.json({ ok: true });
     }
 
     // Unpaired barrier for other commands
@@ -175,7 +206,7 @@ export async function POST(req: NextRequest) {
       await sendTelegramMessage(
         botToken,
         chatId,
-        `Akun Telegram Anda belum terdaftar pada sistem.\nSilakan hubungkan akun dengan perintah:\n<code>/pair KODE_ANDA</code>`
+        `Akun Telegram Anda belum terdaftar pada sistem.\nSilakan kirimkan Kode Pairing Anda untuk menghubungkan akun.`
       );
       return NextResponse.json({ ok: true });
     }
@@ -183,15 +214,29 @@ export async function POST(req: NextRequest) {
     // -------------------------------------------------------------
     // COMMAND: /saldo or /status
     // -------------------------------------------------------------
-    if (message.text && (message.text.startsWith('/saldo') || message.text.startsWith('/status'))) {
-      const { data: txs } = await supabase
-        .from('transactions')
-        .select('amount, type')
-        .eq('user_id', profile.id);
+    if (message.text && (message.text.startsWith('/saldo') || message.text.startsWith('/status') || message.text.toLowerCase() === 'saldo')) {
+      let income = 0;
+      let expense = 0;
+      let balance = 0;
 
-      const income = txs?.filter((t) => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0) || 0;
-      const expense = txs?.filter((t) => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0) || 0;
-      const balance = income - expense;
+      const { data: summaryData } = await supabase.rpc('get_telegram_summary', {
+        p_telegram_id: telegramId,
+      });
+
+      if (summaryData && summaryData.found) {
+        income = Number(summaryData.income) || 0;
+        expense = Number(summaryData.expense) || 0;
+        balance = Number(summaryData.balance) || 0;
+      } else {
+        const { data: txs } = await supabase
+          .from('transactions')
+          .select('amount, type')
+          .eq('user_id', profile.id);
+
+        income = txs?.filter((t) => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0) || 0;
+        expense = txs?.filter((t) => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0) || 0;
+        balance = income - expense;
+      }
 
       await sendTelegramMessage(
         botToken,
@@ -209,7 +254,7 @@ export async function POST(req: NextRequest) {
     // PHOTO MESSAGE (Scan Struk Kasir / Screenshot m-Banking)
     // -------------------------------------------------------------
     if (message.photo && message.photo.length > 0) {
-      await sendTelegramMessage(botToken, chatId, `Sedang memproses dan menganalisis dokumen bukti transaksi...`);
+      await sendTelegramMessage(botToken, chatId, `Sedang menganalisis dokumen transaksi...`);
 
       const photo = message.photo[message.photo.length - 1];
       const fileRes = await fetch(`https://api.telegram.org/bot${botToken}/getFile?file_id=${photo.file_id}`);
@@ -231,13 +276,13 @@ export async function POST(req: NextRequest) {
         await sendTelegramMessage(
           botToken,
           chatId,
-          `Nominal transaksi tidak dapat terdeteksi secara jelas dari dokumen. Pastikan gambar yang dikirimkan memiliki resolusi yang memadai.`
+          `Nominal transaksi tidak terdeteksi secara jelas dari dokumen. Pastikan gambar yang dikirimkan memiliki pencahayaan dan resolusi yang memadai.`
         );
         return NextResponse.json({ ok: true });
       }
 
-      // Format items detail
-      let itemsNote = null;
+      // Format items
+      let itemsNote = '';
       let itemsDisplay = '';
       if (txData.items && Array.isArray(txData.items) && txData.items.length > 0) {
         const itemLines = txData.items.map((it: any) =>
@@ -246,22 +291,18 @@ export async function POST(req: NextRequest) {
             : it
         );
         itemsNote = itemLines.join('; ');
-        itemsDisplay = `\n• Rincian Item: ${itemLines.slice(0, 3).join(', ')}${itemLines.length > 3 ? ' (dan item lainnya)' : ''}`;
+        itemsDisplay = `\n• Rincian Item: ${itemLines.slice(0, 3).join(', ')}${itemLines.length > 3 ? ' (dan lainnya)' : ''}`;
       }
 
-      // Save to Supabase
-      const today = new Date().toISOString().split('T')[0];
-      await supabase.from('transactions').insert([
-        {
-          user_id: profile.id,
-          type: 'expense',
-          amount: Number(txData.amount),
-          description: txData.merchant || 'Transaksi Struk Dokumen',
-          transaction_date: txData.date || today,
-          payment_method: 'Cash',
-          notes: itemsNote || txData.notes || 'Dicatat via Telegram Dokumen OCR',
-        },
-      ]);
+      // Insert via RPC or table
+      await supabase.rpc('add_telegram_transaction', {
+        p_telegram_id: telegramId,
+        p_type: 'expense',
+        p_amount: Number(txData.amount),
+        p_description: txData.merchant || 'Transaksi Struk Dokumen',
+        p_category_name: txData.category || 'Belanja & Kebutuhan',
+        p_notes: itemsNote || txData.notes || 'Dicatat via Telegram OCR',
+      });
 
       await sendTelegramMessage(
         botToken,
@@ -270,8 +311,8 @@ export async function POST(req: NextRequest) {
           `• Merchant/Toko: <b>${txData.merchant || 'Transaksi Belanja'}</b>\n` +
           `• Total Nominal: <b>${formatIDR(txData.amount)}</b>\n` +
           `• Kategori: ${txData.category || 'Belanja & Kebutuhan'}\n` +
-          `• Tanggal: ${txData.date || today}${itemsDisplay}\n\n` +
-          `Sistem telah menyimpan data ini ke dalam akun Anda.`
+          `• Tanggal: ${txData.date || new Date().toISOString().split('T')[0]}${itemsDisplay}\n\n` +
+          `Transaksi telah tersimpan ke dalam akun Anda.`
       );
       return NextResponse.json({ ok: true });
     }
@@ -285,18 +326,14 @@ export async function POST(req: NextRequest) {
 
       if (aiResult.detectedTransaction && aiResult.detectedTransaction.amount) {
         const tx = aiResult.detectedTransaction;
-        const today = new Date().toISOString().split('T')[0];
-
-        await supabase.from('transactions').insert([
-          {
-            user_id: profile.id,
-            type: tx.type || 'expense',
-            amount: Number(tx.amount),
-            description: tx.description || 'Pencatatan Telegram',
-            transaction_date: today,
-            payment_method: 'Cash',
-          },
-        ]);
+        await supabase.rpc('add_telegram_transaction', {
+          p_telegram_id: telegramId,
+          p_type: tx.type || 'expense',
+          p_amount: Number(tx.amount),
+          p_description: tx.description || 'Pencatatan Telegram',
+          p_category_name: tx.suggested_category || 'Lain-lain',
+          p_notes: 'Dicatat via Bot Telegram',
+        });
 
         await sendTelegramMessage(
           botToken,
@@ -305,8 +342,7 @@ export async function POST(req: NextRequest) {
             `• Keterangan: <b>${tx.description}</b>\n` +
             `• Nominal: <b>${formatIDR(tx.amount)}</b>\n` +
             `• Jenis: ${tx.type === 'income' ? 'Pemasukan' : 'Pengeluaran'}\n` +
-            `• Kategori: ${tx.suggested_category || 'Umum'}\n` +
-            `• Tanggal: ${today}`
+            `• Kategori: ${tx.suggested_category || 'Umum'}`
         );
       } else {
         await sendTelegramMessage(botToken, chatId, aiResult.reply);
