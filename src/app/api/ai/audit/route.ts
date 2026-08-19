@@ -1,24 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateFinancialAudit } from '@/lib/ai/provider';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(req: NextRequest) {
   try {
-    const { income = 0, expense = 0, topCategories = [] } = await req.json();
-
-    const numericIncome = Number(income) || 0;
-    const numericExpense = Number(expense) || 0;
+    const { income, expense, topCategories } = await req.json();
 
     const result = await generateFinancialAudit({
-      income: numericIncome,
-      expense: numericExpense,
-      topCategories,
+      income: Number(income) || 0,
+      expense: Number(expense) || 0,
+      topCategories: topCategories || [],
     });
 
     return NextResponse.json(result);
   } catch (error: any) {
     console.error('Audit API Error:', error);
     return NextResponse.json(
-      { error: error.message || 'Gagal menjalankan audit AI.' },
+      { error: error.message || 'Gagal menghasilkan audit finansial.' },
       { status: 500 }
     );
   }

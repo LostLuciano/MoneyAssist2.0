@@ -1,28 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateReceiptOCR } from '@/lib/ai/provider';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(req: NextRequest) {
   try {
-    const data = await req.json();
-    const { imageBase64, mimeType = 'image/jpeg' } = data;
+    const { imageBase64, mimeType } = await req.json();
 
     if (!imageBase64) {
       return NextResponse.json(
-        { error: 'Data gambar (base64) wajib disertakan.' },
+        { error: 'Gambar struk (imageBase64) diperlukan.' },
         { status: 400 }
       );
     }
 
     const result = await generateReceiptOCR({ imageBase64, mimeType });
-    return NextResponse.json({
-      success: true,
-      extracted: result.extracted,
-      provider: result.provider,
-    });
+    return NextResponse.json(result);
   } catch (error: any) {
     console.error('OCR API Error:', error);
     return NextResponse.json(
-      { error: error.message || 'Gagal memproses OCR gambar struk.' },
+      { error: error.message || 'Gagal memproses struk dengan OCR.' },
       { status: 500 }
     );
   }

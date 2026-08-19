@@ -20,12 +20,25 @@ Gaya Komunikasi:
 export type AIProvider = 'gemini' | 'groq' | 'openrouter' | 'none';
 
 /**
+ * Sanitizes API keys in case user pasted the variable name or quotes in Vercel
+ */
+export function cleanApiKey(key?: string): string | undefined {
+  if (!key) return undefined;
+  const cleaned = key
+    .trim()
+    .replace(/^["']|["']$/g, '')
+    .replace(/^[A-Za-z0-9_]+=\s*/, '')
+    .trim();
+  return cleaned.length > 5 ? cleaned : undefined;
+}
+
+/**
  * Detect available active AI provider from environment variables
  */
 export function getActiveProvider(): AIProvider {
-  if (process.env.GROQ_API_KEY) return 'groq';
-  if (process.env.GEMINI_API_KEY) return 'gemini';
-  if (process.env.OPENROUTER_API_KEY) return 'openrouter';
+  if (cleanApiKey(process.env.GROQ_API_KEY)) return 'groq';
+  if (cleanApiKey(process.env.GEMINI_API_KEY)) return 'gemini';
+  if (cleanApiKey(process.env.OPENROUTER_API_KEY)) return 'openrouter';
   return 'none';
 }
 
@@ -41,6 +54,10 @@ export async function generateAIChat({
   history?: Array<{ role: 'user' | 'assistant'; content: string }>;
   financialContext?: any;
 }): Promise<{ reply: string; detectedTransaction?: any; provider: string }> {
+  const groqKey = cleanApiKey(process.env.GROQ_API_KEY);
+  const geminiKey = cleanApiKey(process.env.GEMINI_API_KEY);
+  const openrouterKey = cleanApiKey(process.env.OPENROUTER_API_KEY);
+
   let contextPrompt = '';
   if (financialContext) {
     contextPrompt = `\n[Konteks Finansial Pengguna Saat Ini]\n- Pemasukan Bulanan: Rp ${financialContext.monthlyIncome || 0}\n- Total Pemasukan Bulan Ini: Rp ${financialContext.totalIncome || 0}\n- Total Pengeluaran Bulan Ini: Rp ${financialContext.totalExpense || 0}\n- Sisa Saldo: Rp ${financialContext.balance || 0}\n- Status: ${financialContext.status || 'Controlled Spending'}\n- Kategori Terbesar: ${financialContext.topCategory || 'Belum ada'}\n`;
@@ -60,7 +77,7 @@ export async function generateAIChat({
 Jika bukan pencatatan transaksi, jawablah pertanyaan keuangan tersebut dengan santun dan berbobot.`;
 
   // 1. GROQ PROVIDER (Llama 3.3 70B - Lightning Fast)
-  if (process.env.GROQ_API_KEY) {
+  if (groqKey) {
     try {
       const messages = [
         { role: 'system', content: FINANCIAL_SYSTEM_PROMPT },
@@ -72,7 +89,7 @@ Jika bukan pencatatan transaksi, jawablah pertanyaan keuangan tersebut dengan sa
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+          Authorization: `Bearer ${groqKey}`,
         },
         body: JSON.stringify({
           model: 'llama-3.3-70b-versatile',
@@ -86,6 +103,9 @@ Jika bukan pencatatan transaksi, jawablah pertanyaan keuangan tersebut dengan sa
         const data = await res.json();
         const replyText = data.choices[0]?.message?.content || '';
         return parseTransactionFromText(replyText, '⚡ Groq (Llama 3.3 70B)');
+      } else {
+        const errText = await res.text();
+        console.warn('Groq chat error response:', errText);
       }
     } catch (e) {
       console.warn('Groq chat failed, falling back to Gemini...', e);
@@ -93,9 +113,9 @@ Jika bukan pencatatan transaksi, jawablah pertanyaan keuangan tersebut dengan sa
   }
 
   // 2. GEMINI PROVIDER (Gemini Flash)
-  if (process.env.GEMINI_API_KEY) {
+  if (geminiKey) {
     try {
-      const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+      const genAI = new GoogleGenerativeAI(geminiKey);
       const model = genAI.getGenerativeModel({
         model: 'gemini-1.5-flash',
         systemInstruction: FINANCIAL_SYSTEM_PROMPT,
@@ -126,7 +146,7 @@ Jika bukan pencatatan transaksi, jawablah pertanyaan keuangan tersebut dengan sa
   }
 
   // 3. OPENROUTER PROVIDER
-  if (process.env.OPENROUTER_API_KEY) {
+  if (openrouterKey) {
     try {
       const messages = [
         { role: 'system', content: FINANCIAL_SYSTEM_PROMPT },
@@ -138,7 +158,7 @@ Jika bukan pencatatan transaksi, jawablah pertanyaan keuangan tersebut dengan sa
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+          Authorization: `Bearer ${openrouterKey}`,
           'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000',
           'X-Title': 'MoneyAssist 2.0',
         },
@@ -161,7 +181,7 @@ Jika bukan pencatatan transaksi, jawablah pertanyaan keuangan tersebut dengan sa
 
   // Fallback Simulation Mode
   return {
-    reply: `Halo! Saya MoneyAssist AI. Silakan masukkan GROQ_API_KEY atau GEMINI_API_KEY di file .env.local untuk mengaktifkan AI secara langsung.\n\nTips Finansial: Usahakan menyisihkan minimal 20% penghasilan untuk tabungan atau dana darurat di awal bulan!`,
+    reply: `Halo! Saya MoneyAssist AI. Silakan pastikan GROQ_API_KEY atau GEMINI_API_KEY telah dimasukkan di Environment Variables Vercel lalu lakukan Redeploy.\n\nTips Finansial: Sisihkan minimal 20% penghasilan untuk tabungan atau dana darurat di awal bulan!`,
     provider: 'Simulasi Lokal',
   };
 }
@@ -178,6 +198,9 @@ export async function generateReceiptOCR({
 }): Promise<{ extracted: any; provider: string; executionTimeMs?: number }> {
   const startTime = Date.now();
   const base64Clean = imageBase64.replace(/^data:image\/\w+;base64,/, '');
+
+  const geminiKey = cleanApiKey(process.env.GEMINI_API_KEY);
+  const groqKey = cleanApiKey(process.env.GROQ_API_KEY);
 
   const prompt = `
 Analisis foto struk / invoice / nota pembayaran kasir ini secara detail, akurat, dan lengkap.
@@ -210,9 +233,9 @@ Peraturan Penting:
 4. "category": Pilih salah satu kategori yang paling tepat.`;
 
   // 1. GEMINI VISION (Best in class for Multimodal OCR)
-  if (process.env.GEMINI_API_KEY) {
+  if (geminiKey) {
     try {
-      const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+      const genAI = new GoogleGenerativeAI(geminiKey);
       const model = genAI.getGenerativeModel({
         model: 'gemini-1.5-flash',
         generationConfig: {
@@ -240,13 +263,13 @@ Peraturan Penting:
   }
 
   // 2. GROQ VISION (Llama 3.2 90B or latest vision fallback)
-  if (process.env.GROQ_API_KEY) {
+  if (groqKey) {
     try {
       const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+          Authorization: `Bearer ${groqKey}`,
         },
         body: JSON.stringify({
           model: 'llama-3.2-90b-vision-preview',
@@ -354,14 +377,17 @@ Berikan hasil dalam format JSON murni tanpa markdown dengan schema:
 }
 `;
 
+  const groqKey = cleanApiKey(process.env.GROQ_API_KEY);
+  const geminiKey = cleanApiKey(process.env.GEMINI_API_KEY);
+
   // 1. GROQ AUDIT
-  if (process.env.GROQ_API_KEY) {
+  if (groqKey) {
     try {
       const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+          Authorization: `Bearer ${groqKey}`,
         },
         body: JSON.stringify({
           model: 'llama-3.3-70b-versatile',
@@ -384,9 +410,9 @@ Berikan hasil dalam format JSON murni tanpa markdown dengan schema:
   }
 
   // 2. GEMINI AUDIT
-  if (process.env.GEMINI_API_KEY) {
+  if (geminiKey) {
     try {
-      const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+      const genAI = new GoogleGenerativeAI(geminiKey);
       const model = genAI.getGenerativeModel({
         model: 'gemini-1.5-flash',
         generationConfig: {
