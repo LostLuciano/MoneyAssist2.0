@@ -167,7 +167,7 @@ Jika bukan pencatatan transaksi, jawablah pertanyaan keuangan tersebut dengan sa
 }
 
 /**
- * 2. ULTRA-FAST RECEIPT OCR VISION (Gemini Flash Vision Prioritized)
+ * 2. ULTRA-FAST RECEIPT OCR VISION WITH DETAILED ITEM BREAKDOWN
  */
 export async function generateReceiptOCR({
   imageBase64,
@@ -180,20 +180,34 @@ export async function generateReceiptOCR({
   const base64Clean = imageBase64.replace(/^data:image\/\w+;base64,/, '');
 
   const prompt = `
-Analisis gambar struk / invoice / nota pembayaran ini secara cepat dan tepat.
-Output HANYA format JSON murni tanpa markdown, tanpa penjelasan:
+Analisis foto struk / invoice / nota pembayaran kasir ini secara detail, akurat, dan lengkap.
+Ekstrak nama toko, total bayar, tanggal, kategori, dan RINCIAN ITEM belanja (nama produk, kuantitas/qty, harga satuan, dan total item).
+
+Kembalikan HANYA format JSON murni tanpa pembungkus markdown, dengan struktur:
 {
-  "merchant": "Nama Toko / Resto / Merchant",
-  "amount": 125000,
+  "merchant": "Nama Toko / Restoran / Supermarket / Marketplace",
+  "amount": 73230,
+  "subtotal": 70000,
+  "discount": 0,
+  "tax_or_fee": 3230,
   "date": "2026-05-20",
   "category": "Makanan & Minuman | Transportasi | Belanja & Kebutuhan | Tagihan & Utilitas | Hiburan & Rekreasi | Kesehatan & Medis | Lain-lain",
-  "items": ["Item 1 (Qty x Harga)", "Item 2"],
-  "notes": "Ringkasan singkat struk"
+  "items": [
+    {
+      "name": "Nama Barang / Menu",
+      "qty": 2,
+      "price": 35000,
+      "total": 70000
+    }
+  ],
+  "notes": "Ringkasan transaksi"
 }
-Peraturan:
-- "amount" harus berupa angka numerik murni tanpa titik/koma/mata uang.
-- "date" harus berformat YYYY-MM-DD.
-- "category" pilih salah satu kategori yang paling sesuai.`;
+
+Peraturan Penting:
+1. "amount": Total akhir yang dibayarkan (angka bulat murni tanpa titik/koma/simbol mata uang).
+2. "date": Format YYYY-MM-DD. Jika tanggal struk tidak ada tahun, gunakan tahun sekarang (${new Date().getFullYear()}).
+3. "items": Buat daftar item sedetail mungkin dari yang tertera di struk/invoice (isi nama produk, qty/jumlah buah/pcs, harga satuan, dan subtotal per item).
+4. "category": Pilih salah satu kategori yang paling tepat.`;
 
   // 1. GEMINI VISION (Best in class for Multimodal OCR)
   if (process.env.GEMINI_API_KEY) {
@@ -203,7 +217,7 @@ Peraturan:
         model: 'gemini-1.5-flash',
         generationConfig: {
           temperature: 0.1,
-          maxOutputTokens: 512,
+          maxOutputTokens: 1024,
           responseMimeType: 'application/json',
         },
       });
@@ -217,7 +231,7 @@ Peraturan:
       const executionTimeMs = Date.now() - startTime;
       return {
         extracted: JSON.parse(cleanJson),
-        provider: `✨ Gemini Flash (${executionTimeMs}ms)`,
+        provider: `✨ Gemini Flash Vision (${executionTimeMs}ms)`,
         executionTimeMs,
       };
     } catch (e: any) {
@@ -225,7 +239,7 @@ Peraturan:
     }
   }
 
-  // 2. GROQ VISION (Llama 3.2 90B or latest vision)
+  // 2. GROQ VISION (Llama 3.2 90B or latest vision fallback)
   if (process.env.GROQ_API_KEY) {
     try {
       const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -249,7 +263,7 @@ Peraturan:
             },
           ],
           temperature: 0.1,
-          max_tokens: 512,
+          max_tokens: 1024,
           response_format: { type: 'json_object' },
         }),
       });
@@ -270,18 +284,34 @@ Peraturan:
     }
   }
 
-  // Fallback Mock OCR
+  // Fallback Mock OCR with rich items breakdown
   const executionTimeMs = Date.now() - startTime;
   return {
     extracted: {
-      merchant: 'Toko / Invoice Terdeteksi',
+      merchant: 'SH-Fitness Store',
       amount: 73230,
+      subtotal: 70000,
+      discount: 0,
+      tax_or_fee: 3230,
       date: new Date().toISOString().split('T')[0],
       category: 'Belanja & Kebutuhan',
-      items: ['Barang Belanja'],
-      notes: 'Ekstraksi selesai. Pastikan GEMINI_API_KEY aktif untuk live vision OCR.',
+      items: [
+        {
+          name: '(Pair) Ankle Weights 1.5kg Legging Weights',
+          qty: 2,
+          price: 26600,
+          total: 53200,
+        },
+        {
+          name: 'Biaya Pengiriman / Shipping',
+          qty: 1,
+          price: 20030,
+          total: 20030,
+        },
+      ],
+      notes: 'Ekstraksi struk belanja selesai. Masukkan GEMINI_API_KEY untuk live OCR akurat.',
     },
-    provider: `OCR (${executionTimeMs}ms)`,
+    provider: `Simulasi OCR (${executionTimeMs}ms)`,
     executionTimeMs,
   };
 }
