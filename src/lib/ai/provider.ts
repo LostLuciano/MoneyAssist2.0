@@ -102,7 +102,7 @@ Jika bukan pencatatan transaksi, jawablah pertanyaan keuangan tersebut dengan sa
       if (res.ok) {
         const data = await res.json();
         const replyText = data.choices[0]?.message?.content || '';
-        return parseTransactionFromText(replyText, '⚡ Groq (Llama 3.3 70B)');
+        return parseTransactionFromText(replyText, 'Groq Llama 3.3');
       } else {
         const errText = await res.text();
         console.warn('Groq chat error response:', errText);
@@ -139,7 +139,7 @@ Jika bukan pencatatan transaksi, jawablah pertanyaan keuangan tersebut dengan sa
 
       const result = await model.generateContent({ contents });
       const replyText = result.response.text();
-      return parseTransactionFromText(replyText, '✨ Google Gemini Flash');
+      return parseTransactionFromText(replyText, 'Google Gemini Flash');
     } catch (e) {
       console.warn('Gemini chat failed...', e);
     }
@@ -172,18 +172,14 @@ Jika bukan pencatatan transaksi, jawablah pertanyaan keuangan tersebut dengan sa
       if (res.ok) {
         const data = await res.json();
         const replyText = data.choices[0]?.message?.content || '';
-        return parseTransactionFromText(replyText, '🌐 OpenRouter (Llama 3.3 Free)');
+        return parseTransactionFromText(replyText, 'OpenRouter Llama 3.3');
       }
     } catch (e) {
       console.warn('OpenRouter chat failed...', e);
     }
   }
 
-  // Fallback Simulation Mode
-  return {
-    reply: `Halo! Saya MoneyAssist AI. Silakan pastikan GROQ_API_KEY atau GEMINI_API_KEY telah dimasukkan di Environment Variables Vercel lalu lakukan Redeploy.\n\nTips Finansial: Sisihkan minimal 20% penghasilan untuk tabungan atau dana darurat di awal bulan!`,
-    provider: 'Simulasi Lokal',
-  };
+  throw new Error('Layanan AI tidak dapat diakses. Pastikan GROQ_API_KEY atau GEMINI_API_KEY terkonfigurasi dengan benar di environment variables.');
 }
 
 /**
@@ -254,7 +250,7 @@ Peraturan Penting:
       const executionTimeMs = Date.now() - startTime;
       return {
         extracted: JSON.parse(cleanJson),
-        provider: `✨ Gemini Flash Vision (${executionTimeMs}ms)`,
+        provider: `Gemini Flash Vision (${executionTimeMs}ms)`,
         executionTimeMs,
       };
     } catch (e: any) {
@@ -298,7 +294,7 @@ Peraturan Penting:
         const executionTimeMs = Date.now() - startTime;
         return {
           extracted: JSON.parse(cleanJson),
-          provider: `⚡ Groq Vision (${executionTimeMs}ms)`,
+          provider: `Groq Vision (${executionTimeMs}ms)`,
           executionTimeMs,
         };
       }
@@ -307,36 +303,7 @@ Peraturan Penting:
     }
   }
 
-  // Fallback Mock OCR with rich items breakdown
-  const executionTimeMs = Date.now() - startTime;
-  return {
-    extracted: {
-      merchant: 'SH-Fitness Store',
-      amount: 73230,
-      subtotal: 70000,
-      discount: 0,
-      tax_or_fee: 3230,
-      date: new Date().toISOString().split('T')[0],
-      category: 'Belanja & Kebutuhan',
-      items: [
-        {
-          name: '(Pair) Ankle Weights 1.5kg Legging Weights',
-          qty: 2,
-          price: 26600,
-          total: 53200,
-        },
-        {
-          name: 'Biaya Pengiriman / Shipping',
-          qty: 1,
-          price: 20030,
-          total: 20030,
-        },
-      ],
-      notes: 'Ekstraksi struk belanja selesai. Masukkan GEMINI_API_KEY untuk live OCR akurat.',
-    },
-    provider: `Simulasi OCR (${executionTimeMs}ms)`,
-    executionTimeMs,
-  };
+  throw new Error('Gagal memproses gambar struk via AI Vision. Pastikan GEMINI_API_KEY telah dimasukkan dengan benar.');
 }
 
 /**
@@ -428,18 +395,17 @@ Berikan hasil dalam format JSON murni tanpa markdown dengan schema:
     }
   }
 
-  // Fallback
+  // Pure mathematical calculation without hardcoded mock
   return {
     status,
     ratio: Math.round(ratio),
     score: ratio > 100 ? 30 : ratio > 70 ? 65 : 90,
-    summary: `Rasio pengeluaranmu sebesar ${ratio.toFixed(0)}% dari pemasukan (${status}).`,
+    summary: `Rasio pengeluaran Anda saat ini sebesar ${ratio.toFixed(0)}% dari total pemasukan.`,
     recommendations: [
-      'Terapkan formula anggaran 50/30/20 (50% Kebutuhan, 30% Keinginan, 20% Tabungan/Investasi).',
-      'Catat setiap transaksi harian secara konsisten melalui fitur Scan Struk atau Chat AI.',
-      'Bangun dana darurat minimal setara 3 sampai 6 kali pengeluaran bulanan.',
+      'Terapkan formula anggaran 50/30/20 (50% Kebutuhan Pokok, 30% Keinginan, 20% Tabungan/Investasi).',
+      'Catat transaksi harian secara konsisten melalui fitur Scan Struk atau Chat AI.',
+      'Pertahankan alokasi dana darurat minimal 3 hingga 6 kali pengeluaran bulanan.',
     ],
-    isMock: true,
   };
 }
 

@@ -49,13 +49,11 @@ export default function TransactionsPage() {
         if (error) throw error;
         setTransactions(data || []);
       } else {
-        const local = localStorage.getItem('moneyassist_demo_tx');
-        if (local) {
-          setTransactions(JSON.parse(local));
-        }
+        setTransactions([]);
       }
     } catch (err) {
       console.error('Error fetching transactions:', err);
+      setTransactions([]);
     } finally {
       setLoading(false);
     }
@@ -69,14 +67,8 @@ export default function TransactionsPage() {
     if (!confirm('Apakah Anda yakin ingin menghapus transaksi ini?')) return;
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { error } = await supabase.from('transactions').delete().eq('id', id);
-        if (error) throw error;
-      } else {
-        const updated = transactions.filter((t) => t.id !== id);
-        localStorage.setItem('moneyassist_demo_tx', JSON.stringify(updated));
-      }
+      const { error } = await supabase.from('transactions').delete().eq('id', id);
+      if (error) throw error;
       fetchTransactions();
     } catch (err: any) {
       alert('Gagal menghapus: ' + err.message);

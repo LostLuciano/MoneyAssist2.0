@@ -121,22 +121,12 @@ export default function TransactionModal({
         if (updateError) throw updateError;
       } else {
         // Insert
-        if (user) {
-          const { error: insertError } = await supabase
-            .from('transactions')
-            .insert([payload]);
-          if (insertError) throw insertError;
-        } else {
-          // Demo storage in localStorage if user not logged in
-          const localTx = JSON.parse(localStorage.getItem('moneyassist_demo_tx') || '[]');
-          localTx.unshift({
-            id: 'demo-' + Date.now(),
-            ...payload,
-            created_at: new Date().toISOString(),
-            categories: allCategories.find((c) => c.id === categoryId),
-          });
-          localStorage.setItem('moneyassist_demo_tx', JSON.stringify(localTx));
-        }
+        if (!user) throw new Error('Silakan login terlebih dahulu untuk menyimpan transaksi.');
+
+        const { error: insertError } = await supabase
+          .from('transactions')
+          .insert([payload]);
+        if (insertError) throw insertError;
       }
 
       onSuccess();

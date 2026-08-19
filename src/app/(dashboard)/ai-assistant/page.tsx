@@ -121,18 +121,10 @@ export default function AiAssistantPage() {
         payment_method: 'Cash',
       };
 
-      if (user) {
-        const { error } = await supabase.from('transactions').insert([payload]);
-        if (error) throw error;
-      } else {
-        const localTx = JSON.parse(localStorage.getItem('moneyassist_demo_tx') || '[]');
-        localTx.unshift({
-          id: 'demo-' + Date.now(),
-          ...payload,
-          created_at: new Date().toISOString(),
-        });
-        localStorage.setItem('moneyassist_demo_tx', JSON.stringify(localTx));
-      }
+      if (!user) throw new Error('Silakan login terlebih dahulu untuk menyimpan transaksi.');
+
+      const { error } = await supabase.from('transactions').insert([payload]);
+      if (error) throw error;
 
       setSavedSuccessId(msgId);
     } catch (err: any) {

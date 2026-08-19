@@ -160,18 +160,10 @@ export default function OcrScanPage() {
         notes: notesContent || extractedData.notes || 'Dicatat via Scan Struk OCR',
       };
 
-      if (user) {
-        const { error: insertError } = await supabase.from('transactions').insert([payload]);
-        if (insertError) throw insertError;
-      } else {
-        const localTx = JSON.parse(localStorage.getItem('moneyassist_demo_tx') || '[]');
-        localTx.unshift({
-          id: 'demo-' + Date.now(),
-          ...payload,
-          created_at: new Date().toISOString(),
-        });
-        localStorage.setItem('moneyassist_demo_tx', JSON.stringify(localTx));
-      }
+      if (!user) throw new Error('Silakan login terlebih dahulu untuk menyimpan transaksi struk.');
+
+      const { error: insertError } = await supabase.from('transactions').insert([payload]);
+      if (insertError) throw insertError;
 
       setSaveSuccess(true);
       setTimeout(() => {
