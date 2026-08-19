@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const token = searchParams.get('token') || searchParams.get('telegram_id');
 
-  const botToken = process.env.TELEGRAM_BOT_TOKEN;
+  const botToken = process.env.TELEGRAM_BOT_TOKEN?.replace(/^TELEGRAM_BOT_TOKEN=/, '').trim();
 
   if (token && botToken) {
     const supabase = getSupabaseAdmin();

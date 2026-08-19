@@ -31,7 +31,7 @@ async function sendTelegramMessage(botToken: string, chatId: string | number, te
 }
 
 export async function POST(req: NextRequest) {
-  const botToken = process.env.TELEGRAM_BOT_TOKEN;
+  const botToken = process.env.TELEGRAM_BOT_TOKEN?.replace(/^TELEGRAM_BOT_TOKEN=/, '').trim();
   if (!botToken) {
     return NextResponse.json({ error: 'TELEGRAM_BOT_TOKEN is not configured.' }, { status: 400 });
   }

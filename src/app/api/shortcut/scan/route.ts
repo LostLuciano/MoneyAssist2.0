@@ -80,7 +80,7 @@ export async function POST(req: NextRequest) {
     if (insertError) throw insertError;
 
     // Send Telegram push notification if connected
-    const botToken = process.env.TELEGRAM_BOT_TOKEN;
+    const botToken = process.env.TELEGRAM_BOT_TOKEN?.replace(/^TELEGRAM_BOT_TOKEN=/, '').trim();
     if (userProfile.telegram_id && botToken) {
       try {
         await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
