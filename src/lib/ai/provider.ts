@@ -36,10 +36,10 @@ export const AVAILABLE_AI_MODELS: AIModelOption[] = [
     description: 'Respon super instan & hemat latency',
   },
   {
-    id: 'gemini-1.5-flash',
-    name: 'Google Gemini 1.5 Flash',
+    id: 'gemini-flash',
+    name: 'Google Gemini Flash',
     provider: 'gemini',
-    modelId: 'gemini-1.5-flash',
+    modelId: 'gemini-flash-latest',
     badge: '✨ Multimodal',
     description: 'Akurat, pintar, & responsif',
   },
@@ -189,31 +189,29 @@ Jika bukan pencatatan transaksi, jawablah pertanyaan keuangan tersebut dengan sa
   // -------------------------------------------------------------
   if (selectedModel?.provider === 'gemini' && geminiKey) {
     try {
-      const genAI = new GoogleGenerativeAI(geminiKey);
-      const model = genAI.getGenerativeModel({
-        model: selectedModel.modelId,
-        systemInstruction: FINANCIAL_SYSTEM_PROMPT,
-        generationConfig: {
-          temperature: 0.3,
-          maxOutputTokens: 1024,
-        },
-      });
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${geminiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [
+              {
+                parts: [{ text: `${FINANCIAL_SYSTEM_PROMPT}\n\n${promptWithInstruction}` }],
+              },
+            ],
+            generationConfig: {
+              temperature: 0.3,
+            },
+          }),
+        }
+      );
 
-      const contents: any[] = [];
-      for (const h of history.slice(-6)) {
-        contents.push({
-          role: h.role === 'assistant' ? 'model' : 'user',
-          parts: [{ text: h.content }],
-        });
+      if (res.ok) {
+        const data = await res.json();
+        const replyText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        return parseTransactionFromText(replyText, 'Google Gemini Flash');
       }
-      contents.push({
-        role: 'user',
-        parts: [{ text: promptWithInstruction }],
-      });
-
-      const result = await model.generateContent({ contents });
-      const replyText = result.response.text();
-      return parseTransactionFromText(replyText, selectedModel.name);
     } catch (e) {
       console.warn('Gemini chat failed, attempting fallbacks...', e);
     }
@@ -255,35 +253,33 @@ Jika bukan pencatatan transaksi, jawablah pertanyaan keuangan tersebut dengan sa
   }
 
   // -------------------------------------------------------------
-  // 4. GEMINI PROVIDER (Gemini 1.5 Flash Fallback)
+  // 4. GEMINI PROVIDER (Gemini Flash Latest Fallback)
   // -------------------------------------------------------------
   if (geminiKey) {
     try {
-      const genAI = new GoogleGenerativeAI(geminiKey);
-      const model = genAI.getGenerativeModel({
-        model: 'gemini-1.5-flash',
-        systemInstruction: FINANCIAL_SYSTEM_PROMPT,
-        generationConfig: {
-          temperature: 0.3,
-          maxOutputTokens: 1024,
-        },
-      });
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${geminiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [
+              {
+                parts: [{ text: `${FINANCIAL_SYSTEM_PROMPT}\n\n${promptWithInstruction}` }],
+              },
+            ],
+            generationConfig: {
+              temperature: 0.3,
+            },
+          }),
+        }
+      );
 
-      const contents: any[] = [];
-      for (const h of history.slice(-6)) {
-        contents.push({
-          role: h.role === 'assistant' ? 'model' : 'user',
-          parts: [{ text: h.content }],
-        });
+      if (res.ok) {
+        const data = await res.json();
+        const replyText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        return parseTransactionFromText(replyText, 'Google Gemini Flash');
       }
-      contents.push({
-        role: 'user',
-        parts: [{ text: promptWithInstruction }],
-      });
-
-      const result = await model.generateContent({ contents });
-      const replyText = result.response.text();
-      return parseTransactionFromText(replyText, 'Google Gemini Flash');
     } catch (e) {
       console.warn('Gemini chat failed, falling back to OpenRouter...', e);
     }
@@ -331,7 +327,7 @@ Jika bukan pencatatan transaksi, jawablah pertanyaan keuangan tersebut dengan sa
 }
 
 /**
- * 2. ULTRA-FAST RECEIPT OCR VISION WITH DETAILED ITEM BREAKDOWN
+ * 2. ULTRA-FAST RECEIPT OCR VISION WITH DETAILED ITEM BREAKDOWN (Gemini / OpenRouter / Groq)
  */
 export async function generateReceiptOCR({
   imageBase64,
@@ -344,6 +340,7 @@ export async function generateReceiptOCR({
   const base64Clean = imageBase64.replace(/^data:image\/\w+;base64,/, '');
 
   const geminiKey = cleanApiKey(process.env.GEMINI_API_KEY);
+  const openrouterKey = cleanApiKey(process.env.OPENROUTER_API_KEY);
   const groqKey = cleanApiKey(process.env.GROQ_API_KEY);
 
   const prompt = `
@@ -380,37 +377,108 @@ Aturan Khusus:
 3. "items": Buat rincian item produk yang dibeli jika tertera di gambar.
 4. Kembalikan HANYA JSON murni tanpa markdown, tanpa teks pembuka/penutup.`;
 
-  // 1. GEMINI VISION (Best in class for Multimodal OCR)
+  // -------------------------------------------------------------
+  // 1. GOOGLE GEMINI FLASH LATEST REST API (Primary Vision Engine)
+  // -------------------------------------------------------------
   if (geminiKey) {
     try {
-      const genAI = new GoogleGenerativeAI(geminiKey);
-      const model = genAI.getGenerativeModel({
-        model: 'gemini-1.5-flash',
-        generationConfig: {
-          temperature: 0.1,
-          maxOutputTokens: 1024,
-          responseMimeType: 'application/json',
-        },
-      });
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${geminiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [
+              {
+                parts: [
+                  {
+                    inline_data: {
+                      mime_type: mimeType,
+                      data: base64Clean,
+                    },
+                  },
+                  { text: prompt },
+                ],
+              },
+            ],
+            generationConfig: {
+              temperature: 0.1,
+              responseMimeType: 'application/json',
+            },
+          }),
+        }
+      );
 
-      const result = await model.generateContent([
-        { inlineData: { data: base64Clean, mimeType } },
-        { text: prompt },
-      ]);
-
-      const cleanJson = result.response.text().replace(/```json/g, '').replace(/```/g, '').trim();
-      const executionTimeMs = Date.now() - startTime;
-      return {
-        extracted: JSON.parse(cleanJson),
-        provider: `Gemini Flash Vision (${executionTimeMs}ms)`,
-        executionTimeMs,
-      };
+      if (res.ok) {
+        const data = await res.json();
+        const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+        const cleanJson = text.replace(/```json/g, '').replace(/```/g, '').trim();
+        const executionTimeMs = Date.now() - startTime;
+        return {
+          extracted: JSON.parse(cleanJson),
+          provider: `Google Gemini Flash Vision (${executionTimeMs}ms)`,
+          executionTimeMs,
+        };
+      } else {
+        const errText = await res.text();
+        console.warn('Gemini REST vision error:', errText);
+      }
     } catch (e: any) {
-      console.warn('Gemini vision OCR error, attempting next fallback:', e);
+      console.warn('Gemini vision OCR error, attempting OpenRouter/Groq fallbacks:', e);
     }
   }
 
-  // 2. GROQ VISION (Llama 3.2 90B or latest vision fallback)
+  // -------------------------------------------------------------
+  // 2. OPENROUTER MULTIMODAL VISION (GPT-4o Mini Vision Fallback)
+  // -------------------------------------------------------------
+  if (openrouterKey) {
+    try {
+      const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${openrouterKey}`,
+          'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'https://money-assist2-0.vercel.app',
+          'X-Title': 'MoneyAssist 2.0',
+        },
+        body: JSON.stringify({
+          model: 'openai/gpt-4o-mini',
+          messages: [
+            {
+              role: 'user',
+              content: [
+                { type: 'text', text: prompt },
+                {
+                  type: 'image_url',
+                  image_url: { url: `data:${mimeType};base64,${base64Clean}` },
+                },
+              ],
+            },
+          ],
+          temperature: 0.1,
+          response_format: { type: 'json_object' },
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const content = data.choices?.[0]?.message?.content || '{}';
+        const cleanJson = content.replace(/```json/g, '').replace(/```/g, '').trim();
+        const executionTimeMs = Date.now() - startTime;
+        return {
+          extracted: JSON.parse(cleanJson),
+          provider: `OpenRouter GPT-4o-mini Vision (${executionTimeMs}ms)`,
+          executionTimeMs,
+        };
+      }
+    } catch (e) {
+      console.warn('OpenRouter vision error:', e);
+    }
+  }
+
+  // -------------------------------------------------------------
+  // 3. GROQ VISION (Llama 3.2 90B Vision Fallback)
+  // -------------------------------------------------------------
   if (groqKey) {
     try {
       const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -455,7 +523,7 @@ Aturan Khusus:
     }
   }
 
-  throw new Error('Gagal memproses gambar struk via AI Vision. Pastikan GEMINI_API_KEY telah dimasukkan dengan benar.');
+  throw new Error('Gagal memproses gambar struk via AI Vision. Pastikan GEMINI_API_KEY atau OPENROUTER_API_KEY telah dimasukkan dengan benar.');
 }
 
 /**
