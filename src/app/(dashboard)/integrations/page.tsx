@@ -20,6 +20,8 @@ import {
   Unlink,
   Loader2,
   Shuffle,
+  Radio,
+  BellRing,
 } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import { createClient } from '@/lib/supabase/client';
@@ -34,6 +36,7 @@ export default function IntegrationsPage() {
   const [customCodeInput, setCustomCodeInput] = useState('');
   const [savingCode, setSavingCode] = useState(false);
   const [unlinking, setUnlinking] = useState(false);
+  const [testingPing, setTestingPing] = useState(false);
   const [statusMsg, setStatusMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const supabase = createClient();
@@ -54,7 +57,9 @@ export default function IntegrationsPage() {
         }
 
         setProfile(data);
-        setCustomCodeInput(data?.pairing_code || '');
+        if (!isEditingCode) {
+          setCustomCodeInput(data?.pairing_code || '');
+        }
       } else {
         setProfile({
           pairing_code: 'MA2026',
@@ -72,7 +77,39 @@ export default function IntegrationsPage() {
 
   useEffect(() => {
     fetchProfile();
-  }, []);
+
+    // 1. Live Realtime Listener for instant verification update
+    const channel = supabase
+      .channel('profile-pairing-sync')
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'profiles' },
+        (payload) => {
+          if (payload.new) {
+            setProfile(payload.new);
+            if (payload.new.telegram_id && !profile?.telegram_id) {
+              setStatusMsg({
+                type: 'success',
+                text: `Akun Telegram berhasil terhubung: @${payload.new.telegram_username || payload.new.telegram_id}`,
+              });
+            }
+          }
+        }
+      )
+      .subscribe();
+
+    // 2. Polling Fallback every 3 seconds if not yet connected
+    const interval = setInterval(() => {
+      if (!profile?.telegram_id) {
+        fetchProfile();
+      }
+    }, 3000);
+
+    return () => {
+      supabase.removeChannel(channel);
+      clearInterval(interval);
+    };
+  }, [profile?.telegram_id]);
 
   const handleCopy = (text: string, key: string) => {
     navigator.clipboard.writeText(text);
@@ -96,7 +133,7 @@ export default function IntegrationsPage() {
 
       setProfile((prev: any) => ({ ...prev, pairing_code: newRandomCode }));
       setCustomCodeInput(newRandomCode);
-      setStatusMsg({ type: 'success', text: `Kode pairing berhasil diacak: ${newRandomCode}` });
+      setStatusMsg({ type: 'success', text: `Kode pairing baru berhasil diacak: ${newRandomCode}` });
       setTimeout(() => setStatusMsg(null), 3000);
     } catch (err: any) {
       setStatusMsg({ type: 'error', text: 'Gagal mengacak kode: ' + err.message });
@@ -138,6 +175,29 @@ export default function IntegrationsPage() {
     }
   };
 
+  const handleSendTestPing = async () => {
+    if (!profile?.id) return;
+    setTestingPing(true);
+    setStatusMsg(null);
+
+    try {
+      const res = await fetch('/api/telegram/test-ping', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: profile.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Gagal mengirim pesan.');
+
+      setStatusMsg({ type: 'success', text: 'Pesan tes verifikasi berhasil dikirim ke bot Telegram Anda!' });
+      setTimeout(() => setStatusMsg(null), 4000);
+    } catch (err: any) {
+      setStatusMsg({ type: 'error', text: 'Gagal mengirim tes: ' + err.message });
+    } finally {
+      setTestingPing(false);
+    }
+  };
+
   const handleUnlinkTelegram = async () => {
     if (!confirm('Putuskan sambungan akun Telegram ini?')) return;
     setUnlinking(true);
@@ -159,6 +219,7 @@ export default function IntegrationsPage() {
     }
   };
 
+  const isConnected = !!profile?.telegram_id;
   const activePairingCode = profile?.pairing_code || customCodeInput || 'DEMO20';
   const telegramDirectUrl = `https://t.me/${botUsername}?start=${activePairingCode}`;
   const uploadEndpoint = `${origin}/api/shortcut/scan`;
@@ -205,12 +266,21 @@ export default function IntegrationsPage() {
               </div>
             </div>
 
-            {profile?.telegram_id ? (
-              <div className="flex items-center gap-2">
+            {isConnected ? (
+              <div className="flex flex-wrap items-center gap-2">
                 <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-bold shrink-0">
                   <CheckCircle2 className="w-4 h-4" />
                   Terhubung (@{profile.telegram_username || profile.telegram_id})
                 </span>
+                <button
+                  onClick={handleSendTestPing}
+                  disabled={testingPing}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/20 text-xs font-semibold transition-colors"
+                  title="Tes Kirim Pesan ke Bot"
+                >
+                  {testingPing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <BellRing className="w-3.5 h-3.5" />}
+                  <span>Tes Pesan</span>
+                </button>
                 <button
                   onClick={handleUnlinkTelegram}
                   disabled={unlinking}
@@ -223,152 +293,184 @@ export default function IntegrationsPage() {
               </div>
             ) : (
               <div className="flex items-center gap-2">
-                <span className="px-3 py-1.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 text-xs font-bold shrink-0">
-                  Belum Terhubung
+                <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 text-xs font-bold shrink-0 animate-pulse">
+                  <Radio className="w-3.5 h-3.5" />
+                  Menunggu Pairing...
                 </span>
+                <button
+                  onClick={fetchProfile}
+                  className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300"
+                  title="Cek Status Sekarang"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                </button>
               </div>
             )}
           </div>
 
-          {/* Pairing Code Customizer & Randomizer Box */}
-          <div className="p-5 rounded-2xl bg-slate-900/90 border border-white/10 space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
-                    Kode Pairing Akun Anda
-                  </span>
-                  {!profile?.telegram_id && (
+          {/* Connected Verified Banner OR Pairing Code Customizer */}
+          {isConnected ? (
+            <div className="p-5 rounded-2xl bg-emerald-950/30 border border-emerald-500/20 space-y-3">
+              <div className="flex items-center gap-2.5 text-emerald-400">
+                <CheckCircle2 className="w-5 h-5 shrink-0" />
+                <h4 className="text-sm font-bold">Akun Terhubung & Sinkronisasi Real-Time Aktif</h4>
+              </div>
+              <p className="text-xs text-slate-300 leading-relaxed">
+                Bot Telegram <strong>@{botUsername}</strong> telah terhubung dengan akun <strong>{profile?.full_name || profile?.email}</strong>. Setiap pesan teks atau foto struk yang Anda kirim ke bot akan langsung otomatis tercatat ke riwayat finansial Anda.
+              </p>
+              <div className="pt-2 flex flex-wrap gap-2 text-xs">
+                <a
+                  href={`https://t.me/${botUsername}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="px-3 py-2 rounded-xl bg-emerald-500 text-slate-950 font-bold flex items-center gap-1.5 hover:opacity-90 shadow-md shadow-emerald-500/20"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                  <span>Buka Chat Telegram</span>
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+              </div>
+            </div>
+          ) : (
+            <div className="p-5 rounded-2xl bg-slate-900/90 border border-white/10 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+                      Kode Pairing Akun Anda
+                    </span>
                     <span className="text-[10px] px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-semibold">
                       Otomatis Diacak
                     </span>
-                  )}
+                  </div>
+                  <p className="text-xs text-slate-300 mt-0.5">
+                    Kirimkan kode ini ke bot Telegram untuk menghubungkan akun.
+                  </p>
                 </div>
-                <p className="text-xs text-slate-300 mt-0.5">
-                  Anda bisa mengacak kode baru kapan saja atau mengubahnya secara kustom.
-                </p>
-              </div>
 
-              {!isEditingCode ? (
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-2xl font-black font-mono text-emerald-400 tracking-widest px-4 py-1.5 rounded-xl bg-slate-950 border border-emerald-500/30 shadow-inner">
-                    {activePairingCode}
-                  </span>
-                  <button
-                    onClick={() => handleCopy(activePairingCode, 'plain_code')}
-                    className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-750 text-slate-200 hover:text-white border border-white/5"
-                    title="Salin Kode"
-                  >
-                    {copiedKey === 'plain_code' ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-                  </button>
-                  <button
-                    onClick={handleRandomizeAndSaveCode}
-                    disabled={savingCode}
-                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 border border-white/5 transition-colors"
-                    title="Acak Kode Baru Otomatis"
-                  >
-                    {savingCode ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Shuffle className="w-3.5 h-3.5 text-cyan-400" />}
-                    <span>Acak Kode</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      setCustomCodeInput(activePairingCode);
-                      setIsEditingCode(true);
-                    }}
-                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-750 text-xs font-semibold text-slate-200 border border-white/5"
-                  >
-                    <Edit2 className="w-3.5 h-3.5" />
-                    <span>Ganti</span>
-                  </button>
-                </div>
-              ) : (
-                <form onSubmit={handleSaveCustomCode} className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    value={customCodeInput}
-                    onChange={(e) => setCustomCodeInput(e.target.value.toUpperCase())}
-                    placeholder="KODE BARU..."
-                    className="px-3.5 py-2 bg-slate-950 border border-emerald-500/50 rounded-xl text-emerald-400 font-mono font-bold text-sm tracking-wider focus:outline-none w-36 uppercase"
-                    maxLength={12}
-                    required
-                  />
-                  <button
-                    type="submit"
-                    disabled={savingCode}
-                    className="flex items-center gap-1 px-3.5 py-2 rounded-xl bg-emerald-500 text-slate-950 font-bold text-xs shadow-md shadow-emerald-500/20"
-                  >
-                    {savingCode ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-                    <span>Simpan</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setIsEditingCode(false)}
-                    className="px-2.5 py-2 text-xs text-slate-400 hover:text-white"
-                  >
-                    Batal
-                  </button>
-                </form>
-              )}
+                {!isEditingCode ? (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-2xl font-black font-mono text-emerald-400 tracking-widest px-4 py-1.5 rounded-xl bg-slate-950 border border-emerald-500/30 shadow-inner">
+                      {activePairingCode}
+                    </span>
+                    <button
+                      onClick={() => handleCopy(activePairingCode, 'plain_code')}
+                      className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-750 text-slate-200 hover:text-white border border-white/5"
+                      title="Salin Kode"
+                    >
+                      {copiedKey === 'plain_code' ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                    </button>
+                    <button
+                      onClick={handleRandomizeAndSaveCode}
+                      disabled={savingCode}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 border border-white/5 transition-colors"
+                      title="Acak Kode Baru Otomatis"
+                    >
+                      {savingCode ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Shuffle className="w-3.5 h-3.5 text-cyan-400" />}
+                      <span>Acak Kode</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setCustomCodeInput(activePairingCode);
+                        setIsEditingCode(true);
+                      }}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-750 text-xs font-semibold text-slate-200 border border-white/5"
+                    >
+                      <Edit2 className="w-3.5 h-3.5" />
+                      <span>Ganti</span>
+                    </button>
+                  </div>
+                ) : (
+                  <form onSubmit={handleSaveCustomCode} className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={customCodeInput}
+                      onChange={(e) => setCustomCodeInput(e.target.value.toUpperCase())}
+                      placeholder="KODE BARU..."
+                      className="px-3.5 py-2 bg-slate-950 border border-emerald-500/50 rounded-xl text-emerald-400 font-mono font-bold text-sm tracking-wider focus:outline-none w-36 uppercase"
+                      maxLength={12}
+                      required
+                    />
+                    <button
+                      type="submit"
+                      disabled={savingCode}
+                      className="flex items-center gap-1 px-3.5 py-2 rounded-xl bg-emerald-500 text-slate-950 font-bold text-xs shadow-md shadow-emerald-500/20"
+                    >
+                      {savingCode ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                      <span>Simpan</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsEditingCode(false)}
+                      className="px-2.5 py-2 text-xs text-slate-400 hover:text-white"
+                    >
+                      Batal
+                    </button>
+                  </form>
+                )}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* 2 Ways to Connect: 1-Click Link & Direct Text */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-            {/* Way 1: 1-Click Link */}
-            <div className="p-5 rounded-2xl bg-gradient-to-br from-cyan-950/40 via-slate-900 to-slate-900 border border-cyan-500/20 space-y-4 flex flex-col justify-between">
-              <div>
-                <span className="text-[11px] font-bold text-cyan-400 uppercase tracking-wider block">
-                  Cara 1: Buka Bot Langsung (1-Klik)
-                </span>
-                <p className="text-xs text-slate-300 mt-1">
-                  Klik tombol di bawah untuk membuka Telegram dan langsung menghubungkan akun secara otomatis.
-                </p>
-              </div>
+          {!isConnected && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+              {/* Way 1: 1-Click Link */}
+              <div className="p-5 rounded-2xl bg-gradient-to-br from-cyan-950/40 via-slate-900 to-slate-900 border border-cyan-500/20 space-y-4 flex flex-col justify-between">
+                <div>
+                  <span className="text-[11px] font-bold text-cyan-400 uppercase tracking-wider block">
+                    Cara 1: Buka Bot Langsung (1-Klik)
+                  </span>
+                  <p className="text-xs text-slate-300 mt-1">
+                    Klik tombol di bawah untuk membuka Telegram dan langsung menghubungkan akun secara otomatis.
+                  </p>
+                </div>
 
-              <a
-                href={telegramDirectUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-cyan-500 to-teal-400 hover:opacity-90 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-cyan-500/20 transition-all hover:scale-[1.02]"
-              >
-                <Send className="w-4 h-4" />
-                <span>Buka Bot @{botUsername}</span>
-                <ArrowUpRight className="w-4 h-4" />
-              </a>
-            </div>
-
-            {/* Way 2: Direct Text Message */}
-            <div className="p-5 rounded-2xl bg-slate-900/80 border border-white/5 space-y-4 flex flex-col justify-between">
-              <div>
-                <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-wider block">
-                  Cara 2: Ketik Langsung Kodenya di Chat
-                </span>
-                <p className="text-xs text-slate-300 mt-1">
-                  Buka bot di Telegram, lalu <strong>cukup ketik kodenya saja</strong> (tidak perlu pakai tanda <code>/</code>):
-                </p>
-              </div>
-
-              <div className="p-2.5 rounded-xl bg-slate-950 border border-white/10 flex items-center justify-between font-mono text-sm text-emerald-400">
-                <span>{activePairingCode}</span>
-                <button
-                  onClick={() => handleCopy(activePairingCode, 'code_only')}
-                  className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-750 text-slate-200 text-xs font-sans font-semibold transition-colors"
+                <a
+                  href={telegramDirectUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-cyan-500 to-teal-400 hover:opacity-90 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-cyan-500/20 transition-all hover:scale-[1.02]"
                 >
-                  {copiedKey === 'code_only' ? (
-                    <>
-                      <Check className="w-3.5 h-3.5 text-emerald-400" />
-                      <span className="text-emerald-400">Tersalin!</span>
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="w-3.5 h-3.5" />
-                      <span>Salin Kode</span>
-                    </>
-                  )}
-                </button>
+                  <Send className="w-4 h-4" />
+                  <span>Buka Bot @{botUsername}</span>
+                  <ArrowUpRight className="w-4 h-4" />
+                </a>
+              </div>
+
+              {/* Way 2: Direct Text Message */}
+              <div className="p-5 rounded-2xl bg-slate-900/80 border border-white/5 space-y-4 flex flex-col justify-between">
+                <div>
+                  <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-wider block">
+                    Cara 2: Ketik Langsung Kodenya di Chat
+                  </span>
+                  <p className="text-xs text-slate-300 mt-1">
+                    Buka bot di Telegram, lalu <strong>cukup ketik kodenya saja</strong> (tidak perlu pakai tanda <code>/</code>):
+                  </p>
+                </div>
+
+                <div className="p-2.5 rounded-xl bg-slate-950 border border-white/10 flex items-center justify-between font-mono text-sm text-emerald-400">
+                  <span>{activePairingCode}</span>
+                  <button
+                    onClick={() => handleCopy(activePairingCode, 'code_only')}
+                    className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-750 text-slate-200 text-xs font-sans font-semibold transition-colors"
+                  >
+                    {copiedKey === 'code_only' ? (
+                      <>
+                        <Check className="w-3.5 h-3.5 text-emerald-400" />
+                        <span className="text-emerald-400">Tersalin!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3.5 h-3.5" />
+                        <span>Salin Kode</span>
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* 2. iPhone Siri & Back Tap Shortcut Card */}
