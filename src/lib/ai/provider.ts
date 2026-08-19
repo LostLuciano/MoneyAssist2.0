@@ -17,6 +17,74 @@ Gaya Komunikasi:
 - Berikan poin-poin yang mudah dibaca dan actionable.
 `;
 
+export interface AIModelOption {
+  id: string;
+  name: string;
+  provider: 'groq' | 'gemini' | 'openrouter';
+  modelId: string;
+  badge: string;
+  description: string;
+}
+
+export const AVAILABLE_AI_MODELS: AIModelOption[] = [
+  {
+    id: 'groq-llama-3.3',
+    name: 'Groq Llama 3.3 70B',
+    provider: 'groq',
+    modelId: 'llama-3.3-70b-versatile',
+    badge: '⚡ Ultra Cepat',
+    description: 'Respon super instan & hemat latency',
+  },
+  {
+    id: 'gemini-1.5-flash',
+    name: 'Google Gemini 1.5 Flash',
+    provider: 'gemini',
+    modelId: 'gemini-1.5-flash',
+    badge: '✨ Multimodal',
+    description: 'Akurat, pintar, & responsif',
+  },
+  {
+    id: 'openrouter-gpt-4o-mini',
+    name: 'OpenAI GPT-4o Mini',
+    provider: 'openrouter',
+    modelId: 'openai/gpt-4o-mini',
+    badge: '🌟 Rekomendasi',
+    description: 'Analisis cerdas & presisi kategori',
+  },
+  {
+    id: 'openrouter-deepseek-chat',
+    name: 'DeepSeek Chat (V3)',
+    provider: 'openrouter',
+    modelId: 'deepseek/deepseek-chat',
+    badge: '🧠 Penalaran',
+    description: 'Logika matematika & perhitungan akurat',
+  },
+  {
+    id: 'openrouter-deepseek-r1',
+    name: 'DeepSeek R1 (Reasoning)',
+    provider: 'openrouter',
+    modelId: 'deepseek/deepseek-r1',
+    badge: '🔬 Deep Thinking',
+    description: 'Penalaran finansial tingkat lanjut',
+  },
+  {
+    id: 'openrouter-gpt-4o',
+    name: 'OpenAI GPT-4o Flagship',
+    provider: 'openrouter',
+    modelId: 'openai/gpt-4o',
+    badge: '💎 Flagship',
+    description: 'Model tercanggih dengan reasoning tertinggi',
+  },
+  {
+    id: 'openrouter-llama-3.3-free',
+    name: 'Llama 3.3 70B (Free)',
+    provider: 'openrouter',
+    modelId: 'meta-llama/llama-3.3-70b-instruct:free',
+    badge: '🆓 Gratis',
+    description: 'Open-source 70B gratis di OpenRouter',
+  },
+];
+
 export type AIProvider = 'gemini' | 'groq' | 'openrouter' | 'none';
 
 /**
@@ -43,16 +111,18 @@ export function getActiveProvider(): AIProvider {
 }
 
 /**
- * 1. UNIFIED CHAT COMPLETION (Groq / Gemini / OpenRouter)
+ * 1. UNIFIED CHAT COMPLETION (Groq / Gemini / OpenRouter with Multi-Model Support)
  */
 export async function generateAIChat({
   message,
   history = [],
   financialContext,
+  selectedModelId,
 }: {
   message: string;
   history?: Array<{ role: 'user' | 'assistant'; content: string }>;
   financialContext?: any;
+  selectedModelId?: string;
 }): Promise<{ reply: string; detectedTransaction?: any; provider: string }> {
   const groqKey = cleanApiKey(process.env.GROQ_API_KEY);
   const geminiKey = cleanApiKey(process.env.GEMINI_API_KEY);
@@ -76,7 +146,82 @@ export async function generateAIChat({
 \`\`\`
 Jika bukan pencatatan transaksi, jawablah pertanyaan keuangan tersebut dengan santun dan berbobot.`;
 
-  // 1. GROQ PROVIDER (Llama 3.3 70B - Lightning Fast)
+  const selectedModel = AVAILABLE_AI_MODELS.find((m) => m.id === selectedModelId);
+
+  // -------------------------------------------------------------
+  // 1. DIRECT ROUTING IF USER CHOSE A SPECIFIC OPENROUTER MODEL
+  // -------------------------------------------------------------
+  if (selectedModel?.provider === 'openrouter' && openrouterKey) {
+    try {
+      const messages = [
+        { role: 'system', content: FINANCIAL_SYSTEM_PROMPT },
+        ...history.map((h) => ({ role: h.role, content: h.content })),
+        { role: 'user', content: promptWithInstruction },
+      ];
+
+      const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${openrouterKey}`,
+          'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'https://money-assist2-0.vercel.app',
+          'X-Title': 'MoneyAssist 2.0',
+        },
+        body: JSON.stringify({
+          model: selectedModel.modelId,
+          messages,
+          temperature: 0.3,
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const replyText = data.choices[0]?.message?.content || '';
+        return parseTransactionFromText(replyText, selectedModel.name);
+      }
+    } catch (e) {
+      console.warn(`OpenRouter (${selectedModel.name}) failed, attempting fallbacks:`, e);
+    }
+  }
+
+  // -------------------------------------------------------------
+  // 2. DIRECT ROUTING IF USER CHOSE GEMINI
+  // -------------------------------------------------------------
+  if (selectedModel?.provider === 'gemini' && geminiKey) {
+    try {
+      const genAI = new GoogleGenerativeAI(geminiKey);
+      const model = genAI.getGenerativeModel({
+        model: selectedModel.modelId,
+        systemInstruction: FINANCIAL_SYSTEM_PROMPT,
+        generationConfig: {
+          temperature: 0.3,
+          maxOutputTokens: 1024,
+        },
+      });
+
+      const contents: any[] = [];
+      for (const h of history.slice(-6)) {
+        contents.push({
+          role: h.role === 'assistant' ? 'model' : 'user',
+          parts: [{ text: h.content }],
+        });
+      }
+      contents.push({
+        role: 'user',
+        parts: [{ text: promptWithInstruction }],
+      });
+
+      const result = await model.generateContent({ contents });
+      const replyText = result.response.text();
+      return parseTransactionFromText(replyText, selectedModel.name);
+    } catch (e) {
+      console.warn('Gemini chat failed, attempting fallbacks...', e);
+    }
+  }
+
+  // -------------------------------------------------------------
+  // 3. GROQ PROVIDER (Llama 3.3 70B - Default Primary Fast Engine)
+  // -------------------------------------------------------------
   if (groqKey) {
     try {
       const messages = [
@@ -103,16 +248,15 @@ Jika bukan pencatatan transaksi, jawablah pertanyaan keuangan tersebut dengan sa
         const data = await res.json();
         const replyText = data.choices[0]?.message?.content || '';
         return parseTransactionFromText(replyText, 'Groq Llama 3.3');
-      } else {
-        const errText = await res.text();
-        console.warn('Groq chat error response:', errText);
       }
     } catch (e) {
       console.warn('Groq chat failed, falling back to Gemini...', e);
     }
   }
 
-  // 2. GEMINI PROVIDER (Gemini Flash)
+  // -------------------------------------------------------------
+  // 4. GEMINI PROVIDER (Gemini 1.5 Flash Fallback)
+  // -------------------------------------------------------------
   if (geminiKey) {
     try {
       const genAI = new GoogleGenerativeAI(geminiKey);
@@ -141,11 +285,13 @@ Jika bukan pencatatan transaksi, jawablah pertanyaan keuangan tersebut dengan sa
       const replyText = result.response.text();
       return parseTransactionFromText(replyText, 'Google Gemini Flash');
     } catch (e) {
-      console.warn('Gemini chat failed...', e);
+      console.warn('Gemini chat failed, falling back to OpenRouter...', e);
     }
   }
 
-  // 3. OPENROUTER PROVIDER
+  // -------------------------------------------------------------
+  // 5. OPENROUTER MULTI-MODEL FALLBACK
+  // -------------------------------------------------------------
   if (openrouterKey) {
     try {
       const messages = [
@@ -153,6 +299,8 @@ Jika bukan pencatatan transaksi, jawablah pertanyaan keuangan tersebut dengan sa
         ...history.map((h) => ({ role: h.role, content: h.content })),
         { role: 'user', content: promptWithInstruction },
       ];
+
+      const modelIdToUse = process.env.OPENROUTER_MODEL || 'openai/gpt-4o-mini';
 
       const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
@@ -163,7 +311,7 @@ Jika bukan pencatatan transaksi, jawablah pertanyaan keuangan tersebut dengan sa
           'X-Title': 'MoneyAssist 2.0',
         },
         body: JSON.stringify({
-          model: 'meta-llama/llama-3.3-70b-instruct:free',
+          model: modelIdToUse,
           messages,
           temperature: 0.3,
         }),
@@ -172,14 +320,14 @@ Jika bukan pencatatan transaksi, jawablah pertanyaan keuangan tersebut dengan sa
       if (res.ok) {
         const data = await res.json();
         const replyText = data.choices[0]?.message?.content || '';
-        return parseTransactionFromText(replyText, 'OpenRouter Llama 3.3');
+        return parseTransactionFromText(replyText, `OpenRouter (${modelIdToUse})`);
       }
     } catch (e) {
-      console.warn('OpenRouter chat failed...', e);
+      console.warn('OpenRouter chat fallback failed...', e);
     }
   }
 
-  throw new Error('Layanan AI tidak dapat diakses. Pastikan GROQ_API_KEY atau GEMINI_API_KEY terkonfigurasi dengan benar di environment variables.');
+  throw new Error('Layanan AI tidak dapat diakses. Pastikan GROQ_API_KEY, GEMINI_API_KEY, atau OPENROUTER_API_KEY terkonfigurasi dengan benar di environment variables.');
 }
 
 /**

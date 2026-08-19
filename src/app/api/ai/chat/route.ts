@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
   try {
-    const { message, history = [], financialContext } = await req.json();
+    const { message, history = [], financialContext, selectedModelId } = await req.json();
 
     if (!message || typeof message !== 'string') {
       return NextResponse.json(
@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const result = await generateAIChat({ message, history, financialContext });
+    const result = await generateAIChat({ message, history, financialContext, selectedModelId });
     return NextResponse.json(result);
   } catch (error: any) {
     console.error('Chat API Error:', error);
