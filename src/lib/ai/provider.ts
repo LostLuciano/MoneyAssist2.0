@@ -353,10 +353,15 @@ Gambar dapat berupa:
 Tentukan apakah ini PENGELUARAN (expense) atau PEMASUKAN (income).
 Ekstrak data dalam format JSON murni:
 {
+  "platform": "Shopee | Tokopedia | TikTok Shop | GoPay | DANA | BCA | Merchant lain",
   "merchant": "Nama Toko / Penjual / Merchant / Marketplace",
+  "seller": "Nama penjual jika berbeda dari merchant",
+  "order_number": "Nomor pesanan / invoice jika terlihat",
+  "payment_method": "SPayLater | ShopeePay | QRIS | Transfer Bank | Kartu | Cash | Tidak Terbaca",
   "amount": 45228,
   "subtotal": 41990,
   "discount": 7000,
+  "shipping": 3500,
   "tax_or_fee": 3500,
   "date": "${new Date().toISOString().split('T')[0]}",
   "category": "Makanan & Minuman | Transportasi | Belanja & Kebutuhan | Tagihan & Utilitas | Hiburan & Rekreasi | Kesehatan & Medis | Lain-lain",
@@ -374,8 +379,10 @@ Ekstrak data dalam format JSON murni:
 Aturan Khusus:
 1. "amount": Cari nominal akhir transaksi (contoh pada label: Total, Total Pembayaran, Total Pesanan, Grand Total, Rp 45.228 -> 45228). Nilai WAJIB angka numerik murni tanpa titik/koma/simbol mata uang.
 2. "merchant": Nama toko atau brand (contoh: KAHF, Indomaret, Shopee, TikTok Shop).
-3. "items": Buat rincian item produk yang dibeli jika tertera di gambar.
-4. Kembalikan HANYA JSON murni tanpa markdown, tanpa teks pembuka/penutup.`;
+3. Untuk marketplace/detail pesanan, baca seller/toko, nomor pesanan, metode bayar, subtotal produk, diskon/voucher, ongkir, biaya layanan, dan daftar item.
+4. "items": Buat rincian item produk yang dibeli jika tertera di gambar. Jangan gabungkan semua item menjadi satu string jika bisa dipisah.
+5. Jika ada field yang tidak terlihat, isi string kosong atau angka 0, jangan mengarang.
+6. Kembalikan HANYA JSON murni tanpa markdown, tanpa teks pembuka/penutup.`;
 
   // -------------------------------------------------------------
   // 1. GOOGLE GEMINI VISION ENGINE (Auto-Fallback across latest models)

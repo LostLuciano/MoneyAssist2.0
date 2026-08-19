@@ -13,6 +13,8 @@ import {
   Wallet,
   Download,
   AlertCircle,
+  X,
+  FileText,
 } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import TransactionModal from '@/components/transactions/TransactionModal';
@@ -29,6 +31,7 @@ export default function TransactionsPage() {
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
+  const [detailTx, setDetailTx] = useState<Transaction | null>(null);
 
   const supabase = createClient();
 
@@ -215,7 +218,11 @@ export default function TransactionsPage() {
                   {filteredTransactions.map((tx) => {
                     const isIncome = tx.type === 'income';
                     return (
-                      <tr key={tx.id} className="hover:bg-slate-800/40 transition-colors">
+                      <tr
+                        key={tx.id}
+                        onClick={() => setDetailTx(tx)}
+                        className="cursor-pointer hover:bg-slate-800/40 transition-colors"
+                      >
                         <td className="px-6 py-4 font-semibold text-white">
                           <div className="flex items-center gap-2.5">
                             <div
@@ -253,7 +260,8 @@ export default function TransactionsPage() {
                         <td className="px-6 py-4 text-center">
                           <div className="flex items-center justify-center gap-2">
                             <button
-                              onClick={() => {
+                              onClick={(e) => {
+                                e.stopPropagation();
                                 setSelectedTx(tx);
                                 setIsModalOpen(true);
                               }}
@@ -263,7 +271,10 @@ export default function TransactionsPage() {
                               <Edit2 className="w-3.5 h-3.5" />
                             </button>
                             <button
-                              onClick={() => handleDelete(tx.id)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDelete(tx.id);
+                              }}
                               className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors"
                               title="Hapus Transaksi"
                             >
@@ -295,6 +306,88 @@ export default function TransactionsPage() {
         }}
         categories={categories}
       />
+
+      {detailTx && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-150">
+          <div className="w-full max-w-2xl overflow-hidden rounded-2xl border border-white/10 bg-[#0f172a] shadow-2xl">
+            <div className="flex items-start justify-between gap-4 border-b border-white/5 p-5">
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Detail Transaksi</p>
+                <h2 className="mt-1 text-lg font-black text-white">{detailTx.description}</h2>
+                <p className="mt-1 text-xs text-slate-400">{formatDateID(detailTx.transaction_date, 'dd MMMM yyyy')}</p>
+              </div>
+              <button
+                onClick={() => setDetailTx(null)}
+                className="rounded-xl p-2 text-slate-400 transition-colors hover:bg-slate-800 hover:text-white"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="space-y-4 p-5">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div className="rounded-2xl border border-white/5 bg-slate-950/60 p-4">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Nominal</p>
+                  <p className={`mt-2 text-xl font-black ${detailTx.type === 'income' ? 'text-emerald-400' : 'text-rose-400'}`}>
+                    {detailTx.type === 'income' ? '+' : '-'} {formatIDR(detailTx.amount)}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-white/5 bg-slate-950/60 p-4">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Kategori</p>
+                  <p className="mt-2 text-sm font-bold text-white">{detailTx.categories?.name || 'Umum'}</p>
+                </div>
+                <div className="rounded-2xl border border-white/5 bg-slate-950/60 p-4">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Metode</p>
+                  <p className="mt-2 text-sm font-bold text-white">{detailTx.payment_method || 'Cash'}</p>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-white/5 bg-slate-950/60 p-4">
+                <div className="mb-3 flex items-center gap-2 text-slate-300">
+                  <FileText className="h-4 w-4 text-emerald-400" />
+                  <p className="text-xs font-bold uppercase tracking-wider">Rincian OCR / Catatan</p>
+                </div>
+                {detailTx.notes ? (
+                  <div className="space-y-1.5">
+                    {detailTx.notes.split('\n').map((line, index) => (
+                      <p key={`${line}-${index}`} className="rounded-lg bg-slate-900/70 px-3 py-2 text-xs leading-relaxed text-slate-300">
+                        {line}
+                      </p>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-slate-500">Belum ada catatan detail untuk transaksi ini.</p>
+                )}
+              </div>
+
+              <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+                <button
+                  onClick={() => {
+                    setSelectedTx(detailTx);
+                    setDetailTx(null);
+                    setIsModalOpen(true);
+                  }}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-800 px-4 py-2.5 text-xs font-bold text-white transition-colors hover:bg-slate-700"
+                >
+                  <Edit2 className="h-3.5 w-3.5" />
+                  Edit
+                </button>
+                <button
+                  onClick={() => {
+                    const id = detailTx.id;
+                    setDetailTx(null);
+                    handleDelete(id);
+                  }}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-2.5 text-xs font-bold text-rose-300 transition-colors hover:bg-rose-500/20"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Hapus
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

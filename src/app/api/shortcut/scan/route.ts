@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { generateReceiptOCR } from '@/lib/ai/provider';
 import { formatIDR } from '@/lib/utils/currency';
+import { buildTransactionDetailNotes, getPaymentMethodFromExtracted } from '@/lib/utils/transactionDetails';
 
 export const dynamic = 'force-dynamic';
 
@@ -146,17 +147,8 @@ export async function POST(req: NextRequest) {
       const today = new Date().toISOString().split('T')[0];
       const txDate = txData.date || today;
 
-      // Format items
-      let itemsNote = '';
-      if (txData.items && Array.isArray(txData.items) && txData.items.length > 0) {
-        itemsNote = txData.items
-          .map((it: any) =>
-            typeof it === 'object'
-              ? `${it.name || 'Item'} (${it.qty || 1}x @${formatIDR(it.price || 0)}) = ${formatIDR(it.total || it.price || 0)}`
-              : it
-          )
-          .join('; ');
-      }
+      const detailNotes = buildTransactionDetailNotes(txData, 'Pintasan iPhone');
+      const paymentMethod = getPaymentMethodFromExtracted(txData);
 
       // 3. Insert into Supabase transactions via RPC or table
       const { data: insertedTx, error: insertError } = await supabase.from('transactions').insert([
@@ -164,10 +156,10 @@ export async function POST(req: NextRequest) {
           user_id: userProfile.id,
           type: 'expense',
           amount: Number(txData.amount),
-          description: txData.merchant || 'Screenshot Pintasan iPhone',
+          description: txData.merchant || txData.seller || txData.platform || 'Screenshot Pintasan iPhone',
           transaction_date: txDate,
-          payment_method: 'E-Wallet',
-          notes: itemsNote || txData.notes || 'Dicatat via Pintasan iPhone',
+          payment_method: paymentMethod,
+          notes: detailNotes || 'Dicatat via Pintasan iPhone',
         },
       ]).select().single();
 
@@ -182,7 +174,8 @@ export async function POST(req: NextRequest) {
             `• Tipe: Pengeluaran\n` +
             `• Nominal: <b>${formatIDR(txData.amount)}</b>\n` +
             `• Kategori: ${txData.category || 'Belanja & Kebutuhan'}\n` +
-            `• Keterangan: ${txData.merchant || 'Screenshot Pintasan iPhone'}\n` +
+            `• Keterangan: ${txData.merchant || txData.seller || txData.platform || 'Screenshot Pintasan iPhone'}\n` +
+            `• Metode: ${paymentMethod}\n` +
             `• Tanggal: ${txDate}`
         );
       }

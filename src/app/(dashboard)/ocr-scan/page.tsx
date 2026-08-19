@@ -22,6 +22,7 @@ import {
 import Header from '@/components/layout/Header';
 import { createClient } from '@/lib/supabase/client';
 import { formatIDR } from '@/lib/utils/currency';
+import { buildTransactionDetailNotes, getPaymentMethodFromExtracted } from '@/lib/utils/transactionDetails';
 
 /**
  * Client-Side Instant Image Compression to accelerate OCR processing by up to 10x!
@@ -139,24 +140,16 @@ export default function OcrScanPage() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
 
-      let notesContent = '';
-      if (extractedData.items && Array.isArray(extractedData.items)) {
-        notesContent = extractedData.items
-          .map((it: any) =>
-            typeof it === 'object'
-              ? `${it.name || 'Item'} (${it.qty || 1}x @${formatIDR(it.price || 0)}) = ${formatIDR(it.total || it.price || 0)}`
-              : it
-          )
-          .join('; ');
-      }
+      const notesContent = buildTransactionDetailNotes(extractedData, 'Scan Struk OCR');
+      const paymentMethod = getPaymentMethodFromExtracted(extractedData);
 
       const payload = {
         user_id: user?.id,
         type: 'expense',
         amount: Number(extractedData.amount) || 0,
-        description: extractedData.merchant || 'Struk Belanja (OCR)',
+        description: extractedData.merchant || extractedData.seller || extractedData.platform || 'Struk Belanja (OCR)',
         transaction_date: extractedData.date || new Date().toISOString().split('T')[0],
-        payment_method: 'E-Wallet',
+        payment_method: paymentMethod,
         notes: notesContent || extractedData.notes || 'Dicatat via Scan Struk OCR',
       };
 

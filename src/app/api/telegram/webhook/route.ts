@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { generateAIChat, generateReceiptOCR } from '@/lib/ai/provider';
 import { extractTransactionHeuristic } from '@/lib/utils/transactionParser';
 import { formatIDR } from '@/lib/utils/currency';
+import { buildTransactionDetailNotes } from '@/lib/utils/transactionDetails';
 
 export const dynamic = 'force-dynamic';
 
@@ -448,8 +449,7 @@ export async function POST(req: NextRequest) {
           return NextResponse.json({ ok: true });
         }
 
-        // Format items
-        let itemsNote = '';
+        const detailNotes = buildTransactionDetailNotes(txData, 'Telegram OCR');
         let itemsDisplay = '';
         if (txData.items && Array.isArray(txData.items) && txData.items.length > 0) {
           const itemLines = txData.items.map((it: any) =>
@@ -457,7 +457,6 @@ export async function POST(req: NextRequest) {
               ? `${it.name || 'Item'} (${it.qty || 1}x @${formatIDR(it.price || 0)}) = ${formatIDR(it.total || it.price || 0)}`
               : it
           );
-          itemsNote = itemLines.join('; ');
           itemsDisplay = `\n• Rincian Item: ${itemLines.slice(0, 3).join(', ')}${itemLines.length > 3 ? ' (dan lainnya)' : ''}`;
         }
 
@@ -466,16 +465,16 @@ export async function POST(req: NextRequest) {
           p_telegram_id: telegramId,
           p_type: 'expense',
           p_amount: Number(txData.amount),
-          p_description: txData.merchant || 'Transaksi Struk Dokumen',
+          p_description: txData.merchant || txData.seller || txData.platform || 'Transaksi Struk Dokumen',
           p_category_name: txData.category || 'Belanja & Kebutuhan',
-          p_notes: itemsNote || txData.notes || 'Dicatat via Telegram OCR',
+          p_notes: detailNotes || 'Dicatat via Telegram OCR',
         });
 
         await sendTelegramMessage(
           botToken,
           chatId,
           `<b>Pencatatan Transaksi Berhasil</b>\n\n` +
-            `• Toko / Merchant: <b>${txData.merchant || 'Transaksi Belanja'}</b>\n` +
+            `• Toko / Merchant: <b>${txData.merchant || txData.seller || txData.platform || 'Transaksi Belanja'}</b>\n` +
             `• Total Nominal: <b>${formatIDR(txData.amount)}</b>\n` +
             `• Kategori: ${txData.category || 'Belanja & Kebutuhan'}\n` +
             `• Tanggal: ${txData.date || new Date().toISOString().split('T')[0]}${itemsDisplay}\n\n` +

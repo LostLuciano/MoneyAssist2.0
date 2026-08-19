@@ -15,6 +15,7 @@ import {
   Loader2,
   Radio,
   BellRing,
+  Trash2,
 } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import { createClient } from '@/lib/supabase/client';
@@ -25,6 +26,8 @@ export default function IntegrationsPage() {
 
   const [unlinking, setUnlinking] = useState(false);
   const [testingPing, setTestingPing] = useState(false);
+  const [resetConfirm, setResetConfirm] = useState('');
+  const [resettingData, setResettingData] = useState(false);
   const [statusMsg, setStatusMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const supabase = createClient();
@@ -142,6 +145,26 @@ export default function IntegrationsPage() {
       alert('Gagal memutuskan sambungan: ' + err.message);
     } finally {
       setUnlinking(false);
+    }
+  };
+
+  const handleResetAllData = async () => {
+    if (resetConfirm.trim().toUpperCase() !== 'HAPUS DATA') return;
+    setResettingData(true);
+    setStatusMsg(null);
+
+    try {
+      const res = await fetch('/api/user/reset-data', { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Gagal menghapus data.');
+
+      setResetConfirm('');
+      setStatusMsg({ type: 'success', text: data.message || 'Data berhasil dibersihkan.' });
+      setTimeout(() => setStatusMsg(null), 5000);
+    } catch (err: any) {
+      setStatusMsg({ type: 'error', text: err.message || 'Gagal menghapus data.' });
+    } finally {
+      setResettingData(false);
     }
   };
 
@@ -468,6 +491,42 @@ export default function IntegrationsPage() {
                   <span>{step}</span>
                 </div>
               ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="glass-panel rounded-3xl border border-rose-500/15 bg-rose-950/10 p-6 md:p-8">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+            <div className="max-w-2xl">
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-rose-500/20 bg-rose-500/10 text-rose-300">
+                  <Trash2 className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-white">Mulai dari Awal</h3>
+                  <p className="mt-1 text-xs leading-relaxed text-slate-400">
+                    Hapus transaksi, anggaran, target tabungan, dan riwayat AI. Akun, login, kode pairing, dan sambungan Telegram tetap aktif.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="w-full space-y-2 lg:max-w-md">
+              <input
+                type="text"
+                value={resetConfirm}
+                onChange={(e) => setResetConfirm(e.target.value)}
+                placeholder="Ketik HAPUS DATA"
+                className="w-full rounded-xl border border-white/10 bg-slate-950 px-4 py-3 font-mono text-xs font-bold text-white outline-none transition-colors placeholder:text-slate-600 focus:border-rose-500"
+              />
+              <button
+                onClick={handleResetAllData}
+                disabled={resetConfirm.trim().toUpperCase() !== 'HAPUS DATA' || resettingData}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-rose-500 px-4 py-3 text-xs font-black text-white transition-colors hover:bg-rose-400 disabled:bg-slate-800 disabled:text-slate-500"
+              >
+                {resettingData ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                <span>{resettingData ? 'Menghapus...' : 'Hapus Semua Data'}</span>
+              </button>
             </div>
           </div>
         </div>
