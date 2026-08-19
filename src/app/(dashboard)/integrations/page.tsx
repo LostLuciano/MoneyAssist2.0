@@ -24,7 +24,7 @@ export default function IntegrationsPage() {
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   const supabase = createClient();
-  const origin = typeof window !== 'undefined' ? window.location.origin : 'https://moneyassist.vercel.app';
+  const origin = typeof window !== 'undefined' ? window.location.origin : (process.env.NEXT_PUBLIC_SITE_URL || 'https://money-assist2-0.vercel.app');
   const botUsername = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || 'FinMoneyAssist_bot';
 
   useEffect(() => {

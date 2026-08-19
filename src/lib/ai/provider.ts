@@ -159,7 +159,7 @@ Jika bukan pencatatan transaksi, jawablah pertanyaan keuangan tersebut dengan sa
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${openrouterKey}`,
-          'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000',
+          'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'https://money-assist2-0.vercel.app',
           'X-Title': 'MoneyAssist 2.0',
         },
         body: JSON.stringify({
