@@ -27,14 +27,17 @@ CREATE TABLE IF NOT EXISTS public.profiles (
 -- RLS: Profiles
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view their own profile" ON public.profiles;
 CREATE POLICY "Users can view their own profile"
     ON public.profiles FOR SELECT
     USING (auth.uid() = id);
 
+DROP POLICY IF EXISTS "Users can update their own profile" ON public.profiles;
 CREATE POLICY "Users can update their own profile"
     ON public.profiles FOR UPDATE
     USING (auth.uid() = id);
 
+DROP POLICY IF EXISTS "Users can insert their own profile" ON public.profiles;
 CREATE POLICY "Users can insert their own profile"
     ON public.profiles FOR INSERT
     WITH CHECK (auth.uid() = id);
@@ -225,18 +228,22 @@ CREATE TABLE IF NOT EXISTS public.categories (
 -- RLS: Categories
 ALTER TABLE public.categories ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view system and their own categories" ON public.categories;
 CREATE POLICY "Users can view system and their own categories"
     ON public.categories FOR SELECT
     USING (is_system = TRUE OR auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can create their own custom categories" ON public.categories;
 CREATE POLICY "Users can create their own custom categories"
     ON public.categories FOR INSERT
     WITH CHECK (auth.uid() = user_id AND is_system = FALSE);
 
+DROP POLICY IF EXISTS "Users can update their own custom categories" ON public.categories;
 CREATE POLICY "Users can update their own custom categories"
     ON public.categories FOR UPDATE
     USING (auth.uid() = user_id AND is_system = FALSE);
 
+DROP POLICY IF EXISTS "Users can delete their own custom categories" ON public.categories;
 CREATE POLICY "Users can delete their own custom categories"
     ON public.categories FOR DELETE
     USING (auth.uid() = user_id AND is_system = FALSE);
@@ -281,18 +288,22 @@ CREATE TABLE IF NOT EXISTS public.transactions (
 -- RLS: Transactions
 ALTER TABLE public.transactions ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view their own transactions" ON public.transactions;
 CREATE POLICY "Users can view their own transactions"
     ON public.transactions FOR SELECT
     USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert their own transactions" ON public.transactions;
 CREATE POLICY "Users can insert their own transactions"
     ON public.transactions FOR INSERT
     WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update their own transactions" ON public.transactions;
 CREATE POLICY "Users can update their own transactions"
     ON public.transactions FOR UPDATE
     USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can delete their own transactions" ON public.transactions;
 CREATE POLICY "Users can delete their own transactions"
     ON public.transactions FOR DELETE
     USING (auth.uid() = user_id);
@@ -318,18 +329,22 @@ CREATE TABLE IF NOT EXISTS public.budgets (
 -- RLS: Budgets
 ALTER TABLE public.budgets ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view their own budgets" ON public.budgets;
 CREATE POLICY "Users can view their own budgets"
     ON public.budgets FOR SELECT
     USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert their own budgets" ON public.budgets;
 CREATE POLICY "Users can insert their own budgets"
     ON public.budgets FOR INSERT
     WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update their own budgets" ON public.budgets;
 CREATE POLICY "Users can update their own budgets"
     ON public.budgets FOR UPDATE
     USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can delete their own budgets" ON public.budgets;
 CREATE POLICY "Users can delete their own budgets"
     ON public.budgets FOR DELETE
     USING (auth.uid() = user_id);
@@ -355,18 +370,22 @@ CREATE TABLE IF NOT EXISTS public.savings_goals (
 -- RLS: Savings Goals
 ALTER TABLE public.savings_goals ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view their own savings goals" ON public.savings_goals;
 CREATE POLICY "Users can view their own savings goals"
     ON public.savings_goals FOR SELECT
     USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert their own savings goals" ON public.savings_goals;
 CREATE POLICY "Users can insert their own savings goals"
     ON public.savings_goals FOR INSERT
     WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update their own savings goals" ON public.savings_goals;
 CREATE POLICY "Users can update their own savings goals"
     ON public.savings_goals FOR UPDATE
     USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can delete their own savings goals" ON public.savings_goals;
 CREATE POLICY "Users can delete their own savings goals"
     ON public.savings_goals FOR DELETE
     USING (auth.uid() = user_id);
@@ -384,18 +403,22 @@ CREATE TABLE IF NOT EXISTS public.ai_conversations (
 
 ALTER TABLE public.ai_conversations ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view their own AI conversations" ON public.ai_conversations;
 CREATE POLICY "Users can view their own AI conversations"
     ON public.ai_conversations FOR SELECT
     USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can create their own AI conversations" ON public.ai_conversations;
 CREATE POLICY "Users can create their own AI conversations"
     ON public.ai_conversations FOR INSERT
     WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update their own AI conversations" ON public.ai_conversations;
 CREATE POLICY "Users can update their own AI conversations"
     ON public.ai_conversations FOR UPDATE
     USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can delete their own AI conversations" ON public.ai_conversations;
 CREATE POLICY "Users can delete their own AI conversations"
     ON public.ai_conversations FOR DELETE
     USING (auth.uid() = user_id);
@@ -412,10 +435,12 @@ CREATE TABLE IF NOT EXISTS public.ai_messages (
 
 ALTER TABLE public.ai_messages ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view their own AI messages" ON public.ai_messages;
 CREATE POLICY "Users can view their own AI messages"
     ON public.ai_messages FOR SELECT
     USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert their own AI messages" ON public.ai_messages;
 CREATE POLICY "Users can insert their own AI messages"
     ON public.ai_messages FOR INSERT
     WITH CHECK (auth.uid() = user_id);
@@ -427,16 +452,19 @@ INSERT INTO storage.buckets (id, name, public)
 VALUES ('receipts', 'receipts', true)
 ON CONFLICT (id) DO NOTHING;
 
+DROP POLICY IF EXISTS "Users can upload receipts" ON storage.objects;
 CREATE POLICY "Users can upload receipts"
     ON storage.objects FOR INSERT
     TO authenticated
     WITH CHECK (bucket_id = 'receipts' AND (storage.foldername(name))[1] = auth.uid()::text);
 
+DROP POLICY IF EXISTS "Anyone can read public receipts" ON storage.objects;
 CREATE POLICY "Anyone can read public receipts"
     ON storage.objects FOR SELECT
     TO authenticated
     USING (bucket_id = 'receipts');
 
+DROP POLICY IF EXISTS "Users can delete their own receipts" ON storage.objects;
 CREATE POLICY "Users can delete their own receipts"
     ON storage.objects FOR DELETE
     TO authenticated
