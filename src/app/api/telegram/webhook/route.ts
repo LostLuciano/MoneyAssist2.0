@@ -261,66 +261,76 @@ export async function POST(req: NextRequest) {
     // PHOTO MESSAGE (Scan Struk Kasir / Screenshot m-Banking)
     // -------------------------------------------------------------
     if (message.photo && message.photo.length > 0) {
-      await sendTelegramMessage(botToken, chatId, `Sedang menganalisis dokumen transaksi...`);
+      try {
+        await sendTelegramMessage(botToken, chatId, `Sedang menganalisis dokumen transaksi...`);
 
-      const photo = message.photo[message.photo.length - 1];
-      const fileRes = await fetch(`https://api.telegram.org/bot${botToken}/getFile?file_id=${photo.file_id}`);
-      const fileJson = await fileRes.json();
-      const filePath = fileJson.result.file_path;
+        const photo = message.photo[message.photo.length - 1];
+        const fileRes = await fetch(`https://api.telegram.org/bot${botToken}/getFile?file_id=${photo.file_id}`);
+        const fileJson = await fileRes.json();
+        const filePath = fileJson.result.file_path;
 
-      const imgBuffer = await fetch(`https://api.telegram.org/file/bot${botToken}/${filePath}`).then((r) =>
-        r.arrayBuffer()
-      );
-      const base64 = Buffer.from(imgBuffer).toString('base64');
+        const imgBuffer = await fetch(`https://api.telegram.org/file/bot${botToken}/${filePath}`).then((r) =>
+          r.arrayBuffer()
+        );
+        const base64 = Buffer.from(imgBuffer).toString('base64');
 
-      const ocrResult = await generateReceiptOCR({
-        imageBase64: base64,
-        mimeType: 'image/jpeg',
-      });
+        const ocrResult = await generateReceiptOCR({
+          imageBase64: base64,
+          mimeType: 'image/jpeg',
+        });
 
-      const txData = ocrResult.extracted;
-      if (!txData || !txData.amount) {
+        const txData = ocrResult.extracted;
+        if (!txData || !txData.amount) {
+          await sendTelegramMessage(
+            botToken,
+            chatId,
+            `Nominal transaksi tidak terdeteksi secara jelas dari dokumen. Pastikan gambar menampilkan angka total transaksi yang terbaca.`
+          );
+          return NextResponse.json({ ok: true });
+        }
+
+        // Format items
+        let itemsNote = '';
+        let itemsDisplay = '';
+        if (txData.items && Array.isArray(txData.items) && txData.items.length > 0) {
+          const itemLines = txData.items.map((it: any) =>
+            typeof it === 'object'
+              ? `${it.name || 'Item'} (${it.qty || 1}x @${formatIDR(it.price || 0)}) = ${formatIDR(it.total || it.price || 0)}`
+              : it
+          );
+          itemsNote = itemLines.join('; ');
+          itemsDisplay = `\n• Rincian Item: ${itemLines.slice(0, 3).join(', ')}${itemLines.length > 3 ? ' (dan lainnya)' : ''}`;
+        }
+
+        // Insert via RPC
+        await supabase.rpc('add_telegram_transaction', {
+          p_telegram_id: telegramId,
+          p_type: 'expense',
+          p_amount: Number(txData.amount),
+          p_description: txData.merchant || 'Transaksi Struk Dokumen',
+          p_category_name: txData.category || 'Belanja & Kebutuhan',
+          p_notes: itemsNote || txData.notes || 'Dicatat via Telegram OCR',
+        });
+
         await sendTelegramMessage(
           botToken,
           chatId,
-          `Nominal transaksi tidak terdeteksi secara jelas dari dokumen. Pastikan gambar yang dikirimkan memiliki pencahayaan dan resolusi yang memadai.`
+          `<b>Pencatatan Transaksi Berhasil</b>\n\n` +
+            `• Toko / Merchant: <b>${txData.merchant || 'Transaksi Belanja'}</b>\n` +
+            `• Total Nominal: <b>${formatIDR(txData.amount)}</b>\n` +
+            `• Kategori: ${txData.category || 'Belanja & Kebutuhan'}\n` +
+            `• Tanggal: ${txData.date || new Date().toISOString().split('T')[0]}${itemsDisplay}\n\n` +
+            `Transaksi telah tersimpan ke dalam akun Anda.`
         );
-        return NextResponse.json({ ok: true });
+      } catch (photoErr: any) {
+        console.error('Telegram photo processing error:', photoErr);
+        await sendTelegramMessage(
+          botToken,
+          chatId,
+          `Gagal menganalisis gambar transaksi.\n\nDetail: ${photoErr.message || 'Layanan AI vision sibuk.'}\nPastikan gambar memiliki rincian nominal yang jelas.`
+        );
       }
 
-      // Format items
-      let itemsNote = '';
-      let itemsDisplay = '';
-      if (txData.items && Array.isArray(txData.items) && txData.items.length > 0) {
-        const itemLines = txData.items.map((it: any) =>
-          typeof it === 'object'
-            ? `${it.name || 'Item'} (${it.qty || 1}x @${formatIDR(it.price || 0)}) = ${formatIDR(it.total || it.price || 0)}`
-            : it
-        );
-        itemsNote = itemLines.join('; ');
-        itemsDisplay = `\n• Rincian Item: ${itemLines.slice(0, 3).join(', ')}${itemLines.length > 3 ? ' (dan lainnya)' : ''}`;
-      }
-
-      // Insert via RPC
-      await supabase.rpc('add_telegram_transaction', {
-        p_telegram_id: telegramId,
-        p_type: 'expense',
-        p_amount: Number(txData.amount),
-        p_description: txData.merchant || 'Transaksi Struk Dokumen',
-        p_category_name: txData.category || 'Belanja & Kebutuhan',
-        p_notes: itemsNote || txData.notes || 'Dicatat via Telegram OCR',
-      });
-
-      await sendTelegramMessage(
-        botToken,
-        chatId,
-        `<b>Pencatatan Transaksi Berhasil</b>\n\n` +
-          `• Merchant/Toko: <b>${txData.merchant || 'Transaksi Belanja'}</b>\n` +
-          `• Total Nominal: <b>${formatIDR(txData.amount)}</b>\n` +
-          `• Kategori: ${txData.category || 'Belanja & Kebutuhan'}\n` +
-          `• Tanggal: ${txData.date || new Date().toISOString().split('T')[0]}${itemsDisplay}\n\n` +
-          `Transaksi telah tersimpan ke dalam akun Anda.`
-      );
       return NextResponse.json({ ok: true });
     }
 

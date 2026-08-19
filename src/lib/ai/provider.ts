@@ -199,34 +199,38 @@ export async function generateReceiptOCR({
   const groqKey = cleanApiKey(process.env.GROQ_API_KEY);
 
   const prompt = `
-Analisis foto struk / invoice / nota pembayaran kasir ini secara detail, akurat, dan lengkap.
-Ekstrak nama toko, total bayar, tanggal, kategori, dan RINCIAN ITEM belanja (nama produk, kuantitas/qty, harga satuan, dan total item).
+Kamu adalah MoneyAssist Vision OCR Engine. Analisis gambar bukti transaksi ini secara teliti dan akurat.
+Gambar dapat berupa:
+- Screenshot Marketplace / E-commerce (TikTok Shop, Shopee, Tokopedia, detail pesanan, invoice)
+- Screenshot m-Banking / E-Wallet (BCA, Mandiri, GoPay, OVO, DANA, ShopeePay)
+- Struk Kasir / Bon Belanja / Nota SPBU / Restoran
 
-Kembalikan HANYA format JSON murni tanpa pembungkus markdown, dengan struktur:
+Tentukan apakah ini PENGELUARAN (expense) atau PEMASUKAN (income).
+Ekstrak data dalam format JSON murni:
 {
-  "merchant": "Nama Toko / Restoran / Supermarket / Marketplace",
-  "amount": 73230,
-  "subtotal": 70000,
-  "discount": 0,
-  "tax_or_fee": 3230,
-  "date": "2026-05-20",
+  "merchant": "Nama Toko / Penjual / Merchant / Marketplace",
+  "amount": 45228,
+  "subtotal": 41990,
+  "discount": 7000,
+  "tax_or_fee": 3500,
+  "date": "${new Date().toISOString().split('T')[0]}",
   "category": "Makanan & Minuman | Transportasi | Belanja & Kebutuhan | Tagihan & Utilitas | Hiburan & Rekreasi | Kesehatan & Medis | Lain-lain",
   "items": [
     {
-      "name": "Nama Barang / Menu",
-      "qty": 2,
-      "price": 35000,
-      "total": 70000
+      "name": "Nama Produk / Barang",
+      "qty": 1,
+      "price": 21390,
+      "total": 21390
     }
   ],
   "notes": "Ringkasan transaksi"
 }
 
-Peraturan Penting:
-1. "amount": Total akhir yang dibayarkan (angka bulat murni tanpa titik/koma/simbol mata uang).
-2. "date": Format YYYY-MM-DD. Jika tanggal struk tidak ada tahun, gunakan tahun sekarang (${new Date().getFullYear()}).
-3. "items": Buat daftar item sedetail mungkin dari yang tertera di struk/invoice (isi nama produk, qty/jumlah buah/pcs, harga satuan, dan subtotal per item).
-4. "category": Pilih salah satu kategori yang paling tepat.`;
+Aturan Khusus:
+1. "amount": Cari nominal akhir transaksi (contoh pada label: Total, Total Pembayaran, Total Pesanan, Grand Total, Rp 45.228 -> 45228). Nilai WAJIB angka numerik murni tanpa titik/koma/simbol mata uang.
+2. "merchant": Nama toko atau brand (contoh: KAHF, Indomaret, Shopee, TikTok Shop).
+3. "items": Buat rincian item produk yang dibeli jika tertera di gambar.
+4. Kembalikan HANYA JSON murni tanpa markdown, tanpa teks pembuka/penutup.`;
 
   // 1. GEMINI VISION (Best in class for Multimodal OCR)
   if (geminiKey) {
